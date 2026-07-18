@@ -1,0 +1,276 @@
+.jarvis-shell {
+  width: min(1280px, calc(100% - 28px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+}
+
+.chat-panel,
+.tool-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 28, 24, 0.9);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.chat-panel {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.app-header {
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header p {
+  margin: 0 0 8px;
+  color: var(--accent-2);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(2.3rem, 6vw, 4.8rem);
+  line-height: 0.95;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 18px rgba(36, 210, 155, 0.75);
+}
+
+.status.busy span {
+  background: var(--accent-2);
+}
+
+.messages {
+  min-height: 0;
+  overflow: auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.message {
+  width: min(780px, 100%);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.message.user {
+  align-self: flex-end;
+  background: #15372f;
+  border-color: #246452;
+}
+
+.message strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-size: 0.8rem;
+}
+
+.message p {
+  margin: 0;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.composer {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr 56px;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+}
+
+textarea,
+input,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b1713;
+  color: var(--text);
+}
+
+textarea,
+input {
+  padding: 12px 13px;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+select {
+  min-height: 42px;
+  padding: 0 10px;
+}
+
+.composer button,
+.knowledge-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #04120e;
+  font-weight: 900;
+}
+
+.side-panel {
+  display: grid;
+  align-self: start;
+  gap: 18px;
+}
+
+.tool-panel {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.tool-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.tool-panel label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.toggle-row {
+  display: flex !important;
+  align-items: center;
+  gap: 10px !important;
+  color: var(--text) !important;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.button-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1a2a24;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.knowledge-form {
+  display: grid;
+  gap: 10px;
+}
+
+.knowledge-list {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.knowledge-list article {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b1713;
+}
+
+.knowledge-list strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-2);
+}
+
+.knowledge-list p {
+  margin: 0;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+@media (max-width: 920px) {
+  .jarvis-shell {
+    grid-template-columns: 1fr;
+    padding: 16px 0;
+  }
+
+  .chat-panel {
+    min-height: 72vh;
+  }
+
+  .app-header {
+    display: grid;
+    align-items: start;
+  }
+}
+
+@media (max-width: 540px) {
+  .jarvis-shell {
+    width: min(100% - 18px, 1280px);
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .composer button {
+    width: 100%;
+  }
+
+  .button-row {
+    grid-template-columns: 1fr;
+  }
+}
