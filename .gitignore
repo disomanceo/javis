@@ -1,7 +1,9 @@
 .env*
 !.env.example
 .next
+.vercel
 out
 node_modules
 *.log
 firebase-service-account*.json
+*firebase-adminsdk*.json
