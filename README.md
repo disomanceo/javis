@@ -11,6 +11,8 @@ New standalone Jarvis project.
 
 ## Local Setup
 
+อ่านแบบจับมือทำได้ที่ `SETUP.md`
+
 1. Copy `.env.example` to `.env.local`.
 2. Add your Claude API key in `ANTHROPIC_API_KEY`.
 3. Add Firebase Admin credentials using `FIREBASE_SERVICE_ACCOUNT_JSON` or the separate Firebase env vars.
