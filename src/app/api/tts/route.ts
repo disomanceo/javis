@@ -2,6 +2,39 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const GEMINI_VOICES = new Set([
+  "Zephyr",
+  "Puck",
+  "Charon",
+  "Kore",
+  "Fenrir",
+  "Leda",
+  "Orus",
+  "Aoede",
+  "Callirrhoe",
+  "Autonoe",
+  "Enceladus",
+  "Iapetus",
+  "Umbriel",
+  "Algieba",
+  "Despina",
+  "Erinome",
+  "Algenib",
+  "Rasalgethi",
+  "Laomedeia",
+  "Achernar",
+  "Alnilam",
+  "Schedar",
+  "Gacrux",
+  "Pulcherrima",
+  "Achird",
+  "Zubenelgenubi",
+  "Vindemiatrix",
+  "Sadachbia",
+  "Sadaltager",
+  "Sulafat",
+]);
+
 function wavFromPcm(pcm: Buffer, sampleRate = 24000, channels = 1, bitDepth = 16) {
   const byteRate = (sampleRate * channels * bitDepth) / 8;
   const blockAlign = (channels * bitDepth) / 8;
@@ -46,7 +79,13 @@ export async function POST(request: Request) {
     }
 
     const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
-    const voice = process.env.GEMINI_TTS_VOICE || "Kore";
+    const requestedVoice = String(body.voice || "").trim();
+    const envVoice = process.env.GEMINI_TTS_VOICE || "Kore";
+    const voice = GEMINI_VOICES.has(requestedVoice)
+      ? requestedVoice
+      : GEMINI_VOICES.has(envVoice)
+        ? envVoice
+        : "Kore";
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: {

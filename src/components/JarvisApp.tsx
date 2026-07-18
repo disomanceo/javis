@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { BookOpen, Eraser, Mic2, Send, Square, Volume2 } from "lucide-react";
 import "./jarvis-app.css";
 
@@ -17,11 +17,43 @@ type KnowledgeItem = {
   createdAt?: string;
 };
 
-type VoiceOption = {
-  index: number;
+type GeminiVoiceOption = {
   name: string;
-  lang: string;
+  style: string;
 };
+
+const GEMINI_VOICES: GeminiVoiceOption[] = [
+  { name: "Kore", style: "Firm" },
+  { name: "Puck", style: "Upbeat" },
+  { name: "Charon", style: "Informative" },
+  { name: "Orus", style: "Firm" },
+  { name: "Fenrir", style: "Excitable" },
+  { name: "Aoede", style: "Breezy" },
+  { name: "Leda", style: "Youthful" },
+  { name: "Zephyr", style: "Bright" },
+  { name: "Callirrhoe", style: "Easy-going" },
+  { name: "Autonoe", style: "Bright" },
+  { name: "Enceladus", style: "Breathy" },
+  { name: "Iapetus", style: "Clear" },
+  { name: "Umbriel", style: "Easy-going" },
+  { name: "Algieba", style: "Smooth" },
+  { name: "Despina", style: "Smooth" },
+  { name: "Erinome", style: "Clear" },
+  { name: "Algenib", style: "Gravelly" },
+  { name: "Rasalgethi", style: "Informative" },
+  { name: "Laomedeia", style: "Upbeat" },
+  { name: "Achernar", style: "Soft" },
+  { name: "Alnilam", style: "Firm" },
+  { name: "Schedar", style: "Even" },
+  { name: "Gacrux", style: "Mature" },
+  { name: "Pulcherrima", style: "Forward" },
+  { name: "Achird", style: "Friendly" },
+  { name: "Zubenelgenubi", style: "Casual" },
+  { name: "Vindemiatrix", style: "Gentle" },
+  { name: "Sadachbia", style: "Lively" },
+  { name: "Sadaltager", style: "Knowledgeable" },
+  { name: "Sulafat", style: "Warm" },
+];
 
 export function JarvisApp() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -34,22 +66,13 @@ export function JarvisApp() {
   const [status, setStatus] = useState("พร้อมสนทนา");
   const [busy, setBusy] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [geminiVoice, setGeminiVoice] = useState("Kore");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceIndex, setVoiceIndex] = useState("0");
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
   const messagesRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const visibleVoices: VoiceOption[] = useMemo(
-    () =>
-      voices.map((voice, index) => ({
-        index,
-        name: voice.name,
-        lang: voice.lang,
-      })),
-    [voices],
-  );
 
   useEffect(() => {
     const loadVoices = () => {
@@ -63,6 +86,17 @@ export function JarvisApp() {
     window.speechSynthesis?.addEventListener("voiceschanged", loadVoices);
     return () => window.speechSynthesis?.removeEventListener("voiceschanged", loadVoices);
   }, []);
+
+  useEffect(() => {
+    const savedVoice = window.localStorage.getItem("jarvis-gemini-voice");
+    if (savedVoice && GEMINI_VOICES.some((voice) => voice.name === savedVoice)) {
+      setGeminiVoice(savedVoice);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("jarvis-gemini-voice", geminiVoice);
+  }, [geminiVoice]);
 
   useEffect(() => {
     messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
@@ -98,7 +132,7 @@ export function JarvisApp() {
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice: geminiVoice }),
       });
       const data = await response.json();
       if (!response.ok || !data.audio) throw new Error(data.message || "Gemini TTS unavailable");
@@ -233,16 +267,12 @@ export function JarvisApp() {
           </label>
           <label>
             เลือกเสียง
-            <select value={voiceIndex} onChange={(event) => setVoiceIndex(event.target.value)}>
-              {visibleVoices.length ? (
-                visibleVoices.map((voice) => (
-                  <option key={`${voice.name}-${voice.index}`} value={voice.index}>
-                    {voice.name} ({voice.lang})
-                  </option>
-                ))
-              ) : (
-                <option value="0">System default</option>
-              )}
+            <select value={geminiVoice} onChange={(event) => setGeminiVoice(event.target.value)}>
+              {GEMINI_VOICES.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name} - {voice.style}
+                </option>
+              ))}
             </select>
           </label>
           <div className="button-row">
