@@ -78,7 +78,9 @@ http://localhost:3000
 6. เปิด Environment Variables แล้วเพิ่ม:
    - `ANTHROPIC_API_KEY`
    - `CLAUDE_MODEL`
+   - `GEMINI_API_KEY`
    - `GEMINI_TTS_MODEL`
+   - `GEMINI_TTS_VOICE`
    - `FIREBASE_SERVICE_ACCOUNT_JSON`
 7. กด Deploy
 

@@ -44,7 +44,9 @@ Set these in Vercel Project Settings:
 
 - `ANTHROPIC_API_KEY`
 - `CLAUDE_MODEL`
+- `GEMINI_API_KEY`
 - `GEMINI_TTS_MODEL`
+- `GEMINI_TTS_VOICE`
 - `FIREBASE_SERVICE_ACCOUNT_JSON`
 
 Do not commit `.env.local` or service account JSON files.

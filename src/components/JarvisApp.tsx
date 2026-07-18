@@ -39,6 +39,7 @@ export function JarvisApp() {
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
   const messagesRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const visibleVoices: VoiceOption[] = useMemo(
     () =>
@@ -71,7 +72,7 @@ export function JarvisApp() {
     loadKnowledge().catch(() => setKnowledge([]));
   }, []);
 
-  function speak(text: string) {
+  function speakWithBrowser(text: string) {
     if (!speechEnabled || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -85,6 +86,29 @@ export function JarvisApp() {
     utterance.rate = 1;
     utterance.pitch = 0.95;
     window.speechSynthesis.speak(utterance);
+  }
+
+  async function speak(text: string) {
+    if (!speechEnabled) return;
+    window.speechSynthesis?.cancel();
+    audioRef.current?.pause();
+
+    try {
+      setStatus("กำลังสร้างเสียง Gemini...");
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.audio) throw new Error(data.message || "Gemini TTS unavailable");
+
+      const audio = new Audio(data.audio);
+      audioRef.current = audio;
+      await audio.play();
+    } catch {
+      speakWithBrowser(text);
+    }
   }
 
   async function loadKnowledge() {
@@ -116,7 +140,7 @@ export function JarvisApp() {
 
       const answer = data.text || "ผมไม่ได้รับคำตอบกลับมาครับ";
       setMessages((current) => [...current, { role: "assistant", content: answer }]);
-      speak(answer);
+      void speak(answer);
       setStatus(data.contextCount ? `ตอบโดยใช้ข้อมูลอ้างอิง ${data.contextCount} รายการ` : "ตอบโดยไม่พบข้อมูลอ้างอิง");
     } catch (error) {
       const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
@@ -222,7 +246,13 @@ export function JarvisApp() {
             </select>
           </label>
           <div className="button-row">
-            <button type="button" onClick={() => window.speechSynthesis?.cancel()}>
+            <button
+              type="button"
+              onClick={() => {
+                window.speechSynthesis?.cancel();
+                audioRef.current?.pause();
+              }}
+            >
               <Square size={16} />
               หยุดเสียง
             </button>
