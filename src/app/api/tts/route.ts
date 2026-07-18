@@ -47,19 +47,29 @@ export async function POST(request: Request) {
 
     const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
     const voice = process.env.GEMINI_TTS_VOICE || "Kore";
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": process.env.GEMINI_API_KEY,
       },
       body: JSON.stringify({
-        model,
-        input: audioPrompt(text),
-        response_format: { type: "audio" },
-        generation_config: {
-          speech_config: [{ voice }],
+        contents: [
+          {
+            parts: [{ text: audioPrompt(text) }],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: voice,
+              },
+            },
+          },
         },
+        model,
       }),
     });
 
@@ -71,7 +81,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const audioData = data.output_audio?.data;
+    const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!audioData || typeof audioData !== "string") {
       return NextResponse.json({ message: "Gemini did not return audio." }, { status: 502 });
     }
