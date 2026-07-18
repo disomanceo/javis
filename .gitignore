@@ -7,3 +7,4 @@ node_modules
 *.log
 firebase-service-account*.json
 *firebase-adminsdk*.json
+VERCEL_ENV_VALUES_LOCAL_ONLY.txt
