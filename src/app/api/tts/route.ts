@@ -191,6 +191,67 @@ async function synthesizeWithThonburian(text: string) {
   };
 }
 
+async function synthesizeWithMms(text: string) {
+  const endpoint = process.env.MMS_TTS_URL;
+  if (!endpoint) {
+    throw new Error("MMS-TTS Thai endpoint is not configured.");
+  }
+
+  const model = process.env.MMS_TTS_MODEL || "facebook/mms-tts-tha";
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.MMS_TTS_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.MMS_TTS_API_KEY}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      input: text,
+      text,
+      voice: "MMS-TTS Thai",
+      language: "th",
+      response_format: "wav",
+    }),
+  });
+
+  const contentType = response.headers.get("content-type") || "audio/wav";
+  if (!response.ok) {
+    const errorData = contentType.includes("application/json") ? await response.json().catch(() => ({})) : {};
+    throw new Error(errorData.message || errorData.error?.message || "MMS-TTS Thai request failed.");
+  }
+
+  if (contentType.startsWith("audio/")) {
+    const audio = Buffer.from(await response.arrayBuffer());
+    return {
+      audio: audioDataUrl(audio, contentType.split(";")[0]),
+      model,
+      voice: "MMS-TTS Thai",
+      provider: "mms",
+    };
+  }
+
+  const data = await response.json().catch(() => ({}));
+  const base64Audio = data.audio || data.audioContent || data.audio_base64 || data.data?.audio;
+  if (!base64Audio || typeof base64Audio !== "string") {
+    throw new Error("MMS-TTS Thai did not return audio.");
+  }
+
+  const normalizedAudio = base64Audio.startsWith("data:")
+    ? base64Audio
+    : `data:${data.contentType || data.content_type || "audio/wav"};base64,${base64Audio}`;
+
+  return {
+    audio: normalizedAudio,
+    model,
+    voice: "MMS-TTS Thai",
+    provider: "mms",
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -199,10 +260,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Missing text." }, { status: 400 });
     }
 
-    const provider = body.provider === "thonburian" ? "thonburian" : "gemini";
+    const provider = body.provider === "thonburian" ? "thonburian" : body.provider === "mms" ? "mms" : "gemini";
     const requestedVoice = String(body.voice || "").trim();
     if (provider === "thonburian") {
       return NextResponse.json(await synthesizeWithThonburian(text));
+    }
+    if (provider === "mms") {
+      return NextResponse.json(await synthesizeWithMms(text));
     }
 
     return NextResponse.json(await synthesizeWithGemini(text, requestedVoice));

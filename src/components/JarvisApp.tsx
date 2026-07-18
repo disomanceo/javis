@@ -22,7 +22,7 @@ type GeminiVoiceOption = {
   style: string;
 };
 
-type TtsProvider = "gemini" | "thonburian";
+type TtsProvider = "gemini" | "thonburian" | "mms";
 
 const GEMINI_VOICES: GeminiVoiceOption[] = [
   { name: "Kore", style: "Firm" },
@@ -56,6 +56,12 @@ const GEMINI_VOICES: GeminiVoiceOption[] = [
   { name: "Sadaltager", style: "Knowledgeable" },
   { name: "Sulafat", style: "Warm" },
 ];
+
+function ttsProviderLabel(provider: TtsProvider, geminiVoice: string) {
+  if (provider === "thonburian") return "ThonburianTTS";
+  if (provider === "mms") return "MMS-TTS Thai";
+  return `Gemini ${geminiVoice}`;
+}
 
 export function JarvisApp() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -92,7 +98,7 @@ export function JarvisApp() {
 
   useEffect(() => {
     const savedProvider = window.localStorage.getItem("jarvis-tts-provider");
-    if (savedProvider === "gemini" || savedProvider === "thonburian") {
+    if (savedProvider === "gemini" || savedProvider === "thonburian" || savedProvider === "mms") {
       setTtsProvider(savedProvider);
     }
 
@@ -137,7 +143,7 @@ export function JarvisApp() {
     audioRef.current?.pause();
 
     try {
-      setStatus(ttsProvider === "thonburian" ? "กำลังสร้างเสียง ThonburianTTS..." : `กำลังสร้างเสียง Gemini ${geminiVoice}...`);
+      setStatus(`กำลังสร้างเสียง ${ttsProviderLabel(ttsProvider, geminiVoice)}...`);
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,7 +155,7 @@ export function JarvisApp() {
       const audio = new Audio(data.audio);
       audioRef.current = audio;
       await audio.play();
-      setStatus(`กำลังเล่นเสียง ${data.provider === "thonburian" ? "ThonburianTTS" : `Gemini ${data.voice || geminiVoice}`}`);
+      setStatus(`กำลังเล่นเสียง ${data.voice || ttsProviderLabel(ttsProvider, geminiVoice)}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "สร้างเสียงไม่ได้";
       setStatus(`เสียงที่เลือกใช้ไม่ได้: ${message}`);
@@ -157,7 +163,7 @@ export function JarvisApp() {
   }
 
   function testSelectedVoice() {
-    const selected = ttsProvider === "thonburian" ? "ThonburianTTS" : `Gemini ${geminiVoice}`;
+    const selected = ttsProviderLabel(ttsProvider, geminiVoice);
     void speak(`ทดสอบเสียง ${selected} ครับ ผอ.`, { force: true });
   }
 
@@ -295,16 +301,19 @@ export function JarvisApp() {
             <select value={ttsProvider} onChange={(event) => setTtsProvider(event.target.value as TtsProvider)}>
               <option value="gemini">Gemini TTS</option>
               <option value="thonburian">ThonburianTTS</option>
+              <option value="mms">MMS-TTS Thai</option>
             </select>
           </label>
           <label>
             เลือกเสียง
             <select
-              value={ttsProvider === "thonburian" ? "ThonburianTTS" : geminiVoice}
+              value={ttsProvider === "thonburian" ? "ThonburianTTS" : ttsProvider === "mms" ? "MMS-TTS Thai" : geminiVoice}
               onChange={(event) => setGeminiVoice(event.target.value)}
             >
               {ttsProvider === "thonburian" ? (
                 <option value="ThonburianTTS">ThonburianTTS - Thai</option>
+              ) : ttsProvider === "mms" ? (
+                <option value="MMS-TTS Thai">MMS-TTS Thai - facebook/mms-tts-tha</option>
               ) : (
                 GEMINI_VOICES.map((voice) => (
                   <option key={voice.name} value={voice.name}>
