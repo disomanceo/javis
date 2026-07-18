@@ -22,7 +22,7 @@ type GeminiVoiceOption = {
   style: string;
 };
 
-type TtsProvider = "gemini" | "thonburian" | "mms";
+type TtsProvider = "browser" | "gemini" | "thonburian" | "mms";
 
 const GEMINI_VOICES: GeminiVoiceOption[] = [
   { name: "Kore", style: "Firm" },
@@ -58,6 +58,7 @@ const GEMINI_VOICES: GeminiVoiceOption[] = [
 ];
 
 function ttsProviderLabel(provider: TtsProvider, geminiVoice: string) {
+  if (provider === "browser") return "Browser / Microsoft";
   if (provider === "thonburian") return "ThonburianTTS";
   if (provider === "mms") return "MMS-TTS Thai";
   return `Gemini ${geminiVoice}`;
@@ -74,7 +75,7 @@ export function JarvisApp() {
   const [status, setStatus] = useState("พร้อมสนทนา");
   const [busy, setBusy] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
-  const [ttsProvider, setTtsProvider] = useState<TtsProvider>("gemini");
+  const [ttsProvider, setTtsProvider] = useState<TtsProvider>("browser");
   const [geminiVoice, setGeminiVoice] = useState("Kore");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceIndex, setVoiceIndex] = useState("0");
@@ -88,7 +89,8 @@ export function JarvisApp() {
       const available = window.speechSynthesis?.getVoices?.() ?? [];
       setVoices(available);
       const thaiVoice = available.findIndex((voice) => voice.lang.toLowerCase().startsWith("th"));
-      if (thaiVoice >= 0) setVoiceIndex(String(thaiVoice));
+      const savedBrowserVoice = window.localStorage.getItem("jarvis-browser-voice-index");
+      if (!savedBrowserVoice && thaiVoice >= 0) setVoiceIndex(String(thaiVoice));
     };
 
     loadVoices();
@@ -98,7 +100,7 @@ export function JarvisApp() {
 
   useEffect(() => {
     const savedProvider = window.localStorage.getItem("jarvis-tts-provider");
-    if (savedProvider === "gemini" || savedProvider === "thonburian" || savedProvider === "mms") {
+    if (savedProvider === "browser" || savedProvider === "gemini" || savedProvider === "thonburian" || savedProvider === "mms") {
       setTtsProvider(savedProvider);
     }
 
@@ -106,12 +108,18 @@ export function JarvisApp() {
     if (savedVoice && GEMINI_VOICES.some((voice) => voice.name === savedVoice)) {
       setGeminiVoice(savedVoice);
     }
+
+    const savedBrowserVoice = window.localStorage.getItem("jarvis-browser-voice-index");
+    if (savedBrowserVoice) {
+      setVoiceIndex(savedBrowserVoice);
+    }
   }, []);
 
   useEffect(() => {
     window.localStorage.setItem("jarvis-tts-provider", ttsProvider);
     window.localStorage.setItem("jarvis-gemini-voice", geminiVoice);
-  }, [ttsProvider, geminiVoice]);
+    window.localStorage.setItem("jarvis-browser-voice-index", voiceIndex);
+  }, [ttsProvider, geminiVoice, voiceIndex]);
 
   useEffect(() => {
     messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
@@ -135,6 +143,7 @@ export function JarvisApp() {
     utterance.rate = 1;
     utterance.pitch = 0.95;
     window.speechSynthesis.speak(utterance);
+    setStatus(`กำลังเล่นเสียง ${selectedVoice?.name || "Browser / Microsoft"}`);
   }
 
   async function speak(text: string, options: { force?: boolean } = {}) {
@@ -143,6 +152,11 @@ export function JarvisApp() {
     audioRef.current?.pause();
 
     try {
+      if (ttsProvider === "browser") {
+        speakWithBrowser(text);
+        return;
+      }
+
       setStatus(`กำลังสร้างเสียง ${ttsProviderLabel(ttsProvider, geminiVoice)}...`);
       const response = await fetch("/api/tts", {
         method: "POST",
@@ -299,6 +313,7 @@ export function JarvisApp() {
           <label>
             โมเดลเสียง
             <select value={ttsProvider} onChange={(event) => setTtsProvider(event.target.value as TtsProvider)}>
+              <option value="browser">Browser / Microsoft</option>
               <option value="gemini">Gemini TTS</option>
               <option value="thonburian">ThonburianTTS</option>
               <option value="mms">MMS-TTS Thai</option>
@@ -307,10 +322,34 @@ export function JarvisApp() {
           <label>
             เลือกเสียง
             <select
-              value={ttsProvider === "thonburian" ? "ThonburianTTS" : ttsProvider === "mms" ? "MMS-TTS Thai" : geminiVoice}
-              onChange={(event) => setGeminiVoice(event.target.value)}
+              value={
+                ttsProvider === "browser"
+                  ? voiceIndex
+                  : ttsProvider === "thonburian"
+                    ? "ThonburianTTS"
+                    : ttsProvider === "mms"
+                      ? "MMS-TTS Thai"
+                      : geminiVoice
+              }
+              onChange={(event) => {
+                if (ttsProvider === "browser") {
+                  setVoiceIndex(event.target.value);
+                } else {
+                  setGeminiVoice(event.target.value);
+                }
+              }}
             >
-              {ttsProvider === "thonburian" ? (
+              {ttsProvider === "browser" ? (
+                voices.length ? (
+                  voices.map((voice, index) => (
+                    <option key={`${voice.name}-${voice.lang}-${index}`} value={String(index)}>
+                      {voice.name} - {voice.lang}
+                    </option>
+                  ))
+                ) : (
+                  <option value="0">Browser default voice</option>
+                )
+              ) : ttsProvider === "thonburian" ? (
                 <option value="ThonburianTTS">ThonburianTTS - Thai</option>
               ) : ttsProvider === "mms" ? (
                 <option value="MMS-TTS Thai">MMS-TTS Thai - facebook/mms-tts-tha</option>
