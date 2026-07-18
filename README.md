@@ -7,6 +7,7 @@ New standalone Jarvis project.
 - Next.js + React for desktop and mobile web
 - Claude API on server routes
 - Firebase Admin + Firestore for Jarvis knowledge
+- Optional MMS-TTS Thai server for `facebook/mms-tts-tha`
 - Ready for GitHub and Vercel
 
 ## Local Setup
@@ -47,6 +48,18 @@ Set these in Vercel Project Settings:
 - `GEMINI_API_KEY`
 - `GEMINI_TTS_MODEL`
 - `GEMINI_TTS_VOICE`
+- `MMS_TTS_URL`
+- `MMS_TTS_MODEL`
+- `MMS_TTS_API_KEY`
 - `FIREBASE_SERVICE_ACCOUNT_JSON`
 
 Do not commit `.env.local` or service account JSON files.
+
+## MMS-TTS Thai
+
+The `MMS-TTS Thai` option needs a separate Python server because `facebook/mms-tts-tha` is a Transformers model, not a hosted TTS API by itself. See `mms-tts-server/README.md`, deploy that service, then set:
+
+```env
+MMS_TTS_URL=https://your-mms-server.example/synthesize
+MMS_TTS_MODEL=facebook/mms-tts-tha
+```

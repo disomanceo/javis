@@ -194,7 +194,7 @@ async function synthesizeWithThonburian(text: string) {
 async function synthesizeWithMms(text: string) {
   const endpoint = process.env.MMS_TTS_URL;
   if (!endpoint) {
-    throw new Error("MMS-TTS Thai endpoint is not configured.");
+    throw new Error("MMS-TTS Thai endpoint is not configured. Deploy the MMS server and set MMS_TTS_URL to its /synthesize URL.");
   }
 
   const model = process.env.MMS_TTS_MODEL || "facebook/mms-tts-tha";
