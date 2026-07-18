@@ -118,6 +118,11 @@ function extractEventDate(content: string) {
   if (/พรุ่งนี้/.test(content)) return thaiDate(addDays(today, 1));
   if (/มะรืน/.test(content)) return thaiDate(addDays(today, 2));
   if (/วันนี้/.test(content)) return thaiDate(today);
+  if (/ต้นเดือน/.test(content)) return "ต้นเดือน (ยังไม่ระบุวันที่แน่ชัด)";
+  if (/กลางเดือน/.test(content)) return "กลางเดือน (ยังไม่ระบุวันที่แน่ชัด)";
+  if (/ปลายเดือน/.test(content)) return "ปลายเดือน (ยังไม่ระบุวันที่แน่ชัด)";
+  if (/เดือนหน้า/.test(content)) return "เดือนหน้า (ยังไม่ระบุวันที่แน่ชัด)";
+  if (/สัปดาห์หน้า|อาทิตย์หน้า/.test(content)) return "สัปดาห์หน้า (ยังไม่ระบุวันที่แน่ชัด)";
 
   const monthNames = Object.keys(THAI_MONTHS)
     .sort((a, b) => b.length - a.length)
@@ -139,8 +144,8 @@ function eventMemory(content: string) {
   if (!trimmed || trimmed.length > 500) return null;
   if (/[?？]$/.test(trimmed) || /ไหม|หรือเปล่า|คืออะไร|ทำอย่างไร/.test(trimmed)) return null;
 
-  const hasDateSignal = /วันนี้|พรุ่งนี้|มะรืน|วันจันทร์|วันอังคาร|วันพุธ|วันพฤหัส|วันศุกร์|วันเสาร์|วันอาทิตย์|\d{1,2}\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)/i.test(trimmed);
-  const hasEventSignal = /ต้อง|ไป|นัด|ประชุม|อบรม|สัมมนา|ฟังพระสวด|สอบ|ส่งงาน|เตือน|กำหนดการ|กิจกรรม|นักเรียน/.test(trimmed);
+  const hasDateSignal = /วันนี้|พรุ่งนี้|มะรืน|ต้นเดือน|กลางเดือน|ปลายเดือน|เดือนหน้า|สัปดาห์หน้า|อาทิตย์หน้า|วันจันทร์|วันอังคาร|วันพุธ|วันพฤหัส|วันศุกร์|วันเสาร์|วันอาทิตย์|\d{1,2}\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)/i.test(trimmed);
+  const hasEventSignal = /ต้อง|ว่าจะ|ไป|นัด|ประชุม|อบรม|สัมมนา|นิเทศ|ห้องเรียน|ฟังพระสวด|สอบ|ส่งงาน|เตือน|กำหนดการ|กิจกรรม|นักเรียน/.test(trimmed);
   if (!hasDateSignal || !hasEventSignal) return null;
 
   const dateText = extractEventDate(trimmed) || "ยังไม่ระบุวันที่แน่ชัด";
@@ -149,6 +154,44 @@ function eventMemory(content: string) {
     title,
     content: [`ประเภท: เหตุการณ์/นัดหมาย`, `วันที่: ${dateText}`, `รายละเอียด: ${trimmed}`].join("\n"),
     dateText,
+  };
+}
+
+function saveConfirmation(content: string) {
+  const normalized = content.trim().toLowerCase();
+  return /^(ใช่\s*)?(ช่วย)?บันทึก(ด้วย|เลย|ไว้|ให้หน่อย)?ครับ?$|^จำไว้(ด้วย|เลย)?ครับ?$|^เอาเลยครับ?$/.test(normalized);
+}
+
+function previousUserMessage(messages: IncomingMessage[]) {
+  const users = messages.filter((message) => message.role === "user");
+  return users.length >= 2 ? users[users.length - 2] : null;
+}
+
+async function saveChatMemory(content: string) {
+  const event = eventMemory(content);
+  if (event) {
+    const item = await addKnowledge({
+      title: event.title,
+      content: event.content,
+      tags: ["chat-memory", "event", "schedule"],
+    });
+
+    return {
+      item,
+      text: `ผมวิเคราะห์ว่าเป็นเหตุการณ์/นัดหมาย และบันทึกให้แล้วครับ ผอ.\nวันที่: ${event.dateText}\nหัวข้อ: ${item.title}`,
+    };
+  }
+
+  const title = content.length > 60 ? `${content.slice(0, 57)}...` : content;
+  const item = await addKnowledge({
+    title,
+    content,
+    tags: ["chat-memory"],
+  });
+
+  return {
+    item,
+    text: `บันทึกให้แล้วครับ ผอ.\nหัวข้อ: ${item.title}`,
   };
 }
 
@@ -172,34 +215,45 @@ export async function POST(request: Request) {
 
     const memoryContent = memoryRequest(lastUserMessage.content);
     if (memoryContent) {
-      const title = memoryContent.length > 60 ? `${memoryContent.slice(0, 57)}...` : memoryContent;
-      const item = await addKnowledge({
-        title,
-        content: memoryContent,
-        tags: ["chat-memory"],
-      });
+      const saved = await saveChatMemory(memoryContent);
 
       return NextResponse.json({
-        text: `บันทึกให้แล้วครับ ผอ.\nหัวข้อ: ${item.title}`,
+        text: saved.text,
         contextCount: 0,
         usage: null,
-        savedKnowledge: item,
+        savedKnowledge: saved.item,
+      });
+    }
+
+    if (saveConfirmation(lastUserMessage.content)) {
+      const previous = previousUserMessage(messages);
+      if (!previous) {
+        return NextResponse.json({
+          text: "ได้ครับ ผอ. แต่ผมยังไม่เห็นข้อความก่อนหน้าที่จะบันทึกครับ",
+          contextCount: 0,
+          usage: null,
+        });
+      }
+
+      const saved = await saveChatMemory(previous.content.trim());
+
+      return NextResponse.json({
+        text: saved.text,
+        contextCount: 0,
+        usage: null,
+        savedKnowledge: saved.item,
       });
     }
 
     const event = eventMemory(lastUserMessage.content);
     if (event) {
-      const item = await addKnowledge({
-        title: event.title,
-        content: event.content,
-        tags: ["chat-memory", "event", "schedule"],
-      });
+      const saved = await saveChatMemory(lastUserMessage.content.trim());
 
       return NextResponse.json({
-        text: `ผมวิเคราะห์ว่าเป็นเหตุการณ์/นัดหมาย และบันทึกให้แล้วครับ ผอ.\nวันที่: ${event.dateText}\nหัวข้อ: ${item.title}`,
+        text: saved.text,
         contextCount: 0,
         usage: null,
-        savedKnowledge: item,
+        savedKnowledge: saved.item,
       });
     }
 
