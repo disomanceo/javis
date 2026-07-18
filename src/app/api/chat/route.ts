@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { claudeModel, getClaude } from "@/lib/claude";
-import { searchKnowledge } from "@/lib/knowledge";
+import { addKnowledge, searchKnowledge } from "@/lib/knowledge";
 
 export const runtime = "nodejs";
 
@@ -27,9 +27,28 @@ function normalizeMessages(messages: unknown): IncomingMessage[] {
     .slice(-20);
 }
 
-function directorGreeting(content: string) {
+function shouldUseDirectorGreeting(content: string) {
   const normalized = content.trim().toLowerCase();
   return normalized === "สวัสดี" || normalized.startsWith("สวัสดี ");
+}
+
+function memoryRequest(content: string) {
+  const trimmed = content.trim();
+  const patterns = [
+    /^จำไว้ว่า\s*(.+)$/i,
+    /^จำว่า\s*(.+)$/i,
+    /^ช่วยจำว่า\s*(.+)$/i,
+    /^บันทึกว่า\s*(.+)$/i,
+    /^บันทึกข้อมูลว่า\s*(.+)$/i,
+    /^ให้\s*(?:jarvis|javis)\s*จำว่า\s*(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -42,11 +61,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Missing user message." }, { status: 400 });
     }
 
-    if (directorGreeting(lastUserMessage.content)) {
+    if (shouldUseDirectorGreeting(lastUserMessage.content)) {
       return NextResponse.json({
         text: "มีอะไรให้ผมรับใช้ครับ ผอ.",
         contextCount: 0,
         usage: null,
+      });
+    }
+
+    const memoryContent = memoryRequest(lastUserMessage.content);
+    if (memoryContent) {
+      const title = memoryContent.length > 60 ? `${memoryContent.slice(0, 57)}...` : memoryContent;
+      const item = await addKnowledge({
+        title,
+        content: memoryContent,
+        tags: ["chat-memory"],
+      });
+
+      return NextResponse.json({
+        text: `บันทึกให้แล้วครับ ผอ.\nหัวข้อ: ${item.title}`,
+        contextCount: 0,
+        usage: null,
+        savedKnowledge: item,
       });
     }
 

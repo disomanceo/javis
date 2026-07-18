@@ -202,16 +202,7 @@ export async function POST(request: Request) {
     const provider = body.provider === "thonburian" ? "thonburian" : "gemini";
     const requestedVoice = String(body.voice || "").trim();
     if (provider === "thonburian") {
-      try {
-        return NextResponse.json(await synthesizeWithThonburian(text));
-      } catch (error) {
-        const fallback = await synthesizeWithGemini(text, requestedVoice);
-        return NextResponse.json({
-          ...fallback,
-          fallbackFrom: "thonburian",
-          fallbackReason: error instanceof Error ? error.message : "ThonburianTTS unavailable.",
-        });
-      }
+      return NextResponse.json(await synthesizeWithThonburian(text));
     }
 
     return NextResponse.json(await synthesizeWithGemini(text, requestedVoice));

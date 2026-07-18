@@ -131,27 +131,34 @@ export function JarvisApp() {
     window.speechSynthesis.speak(utterance);
   }
 
-  async function speak(text: string) {
-    if (!speechEnabled) return;
+  async function speak(text: string, options: { force?: boolean } = {}) {
+    if (!options.force && !speechEnabled) return;
     window.speechSynthesis?.cancel();
     audioRef.current?.pause();
 
     try {
-      setStatus(ttsProvider === "thonburian" ? "กำลังสร้างเสียง ThonburianTTS..." : "กำลังสร้างเสียง Gemini...");
+      setStatus(ttsProvider === "thonburian" ? "กำลังสร้างเสียง ThonburianTTS..." : `กำลังสร้างเสียง Gemini ${geminiVoice}...`);
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, provider: ttsProvider, voice: geminiVoice }),
       });
       const data = await response.json();
-      if (!response.ok || !data.audio) throw new Error(data.message || "Gemini TTS unavailable");
+      if (!response.ok || !data.audio) throw new Error(data.message || "TTS unavailable");
 
       const audio = new Audio(data.audio);
       audioRef.current = audio;
       await audio.play();
-    } catch {
-      speakWithBrowser(text);
+      setStatus(`กำลังเล่นเสียง ${data.provider === "thonburian" ? "ThonburianTTS" : `Gemini ${data.voice || geminiVoice}`}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "สร้างเสียงไม่ได้";
+      setStatus(`เสียงที่เลือกใช้ไม่ได้: ${message}`);
     }
+  }
+
+  function testSelectedVoice() {
+    const selected = ttsProvider === "thonburian" ? "ThonburianTTS" : `Gemini ${geminiVoice}`;
+    void speak(`ทดสอบเสียง ${selected} ครับ ผอ.`, { force: true });
   }
 
   async function loadKnowledge() {
@@ -183,8 +190,17 @@ export function JarvisApp() {
 
       const answer = data.text || "ผมไม่ได้รับคำตอบกลับมาครับ";
       setMessages((current) => [...current, { role: "assistant", content: answer }]);
+      if (data.savedKnowledge) {
+        setKnowledge((current) => [data.savedKnowledge, ...current].slice(0, 12));
+      }
       void speak(answer);
-      setStatus(data.contextCount ? `ตอบโดยใช้ข้อมูลอ้างอิง ${data.contextCount} รายการ` : "ตอบโดยไม่พบข้อมูลอ้างอิง");
+      setStatus(
+        data.savedKnowledge
+          ? "บันทึกข้อมูลเข้า Firebase แล้ว"
+          : data.contextCount
+            ? `ตอบโดยใช้ข้อมูลอ้างอิง ${data.contextCount} รายการ`
+            : "ตอบโดยไม่พบข้อมูลอ้างอิง",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาด";
       setMessages((current) => [...current, { role: "assistant", content: `ขออภัยครับ ${message}` }]);
@@ -312,6 +328,10 @@ export function JarvisApp() {
             <button type="button" onClick={() => setMessages([])}>
               <Eraser size={16} />
               ล้างแชต
+            </button>
+            <button type="button" onClick={testSelectedVoice}>
+              <Volume2 size={16} />
+              ทดสอบเสียง
             </button>
           </div>
         </section>
