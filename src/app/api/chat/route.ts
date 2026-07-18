@@ -159,7 +159,7 @@ function eventMemory(content: string) {
 
 function saveConfirmation(content: string) {
   const normalized = content.trim().toLowerCase();
-  return /^(ใช่\s*)?(ช่วย)?บันทึก(ด้วย|เลย|ไว้|ให้หน่อย)?ครับ?$|^จำไว้(ด้วย|เลย)?ครับ?$|^เอาเลยครับ?$/.test(normalized);
+  return /^(ใช่\s*)?(ช่วย)?บันทึก(ด้วย|เลย|ไว้|ให้หน่อย)?(ครับ|ค่ะ|คะ)?$|^จำไว้(ด้วย|เลย)?(ครับ|ค่ะ|คะ)?$|^เอาเลย(ครับ|ค่ะ|คะ)?$/.test(normalized);
 }
 
 function previousUserMessage(messages: IncomingMessage[]) {
