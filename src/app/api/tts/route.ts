@@ -35,6 +35,10 @@ const GEMINI_VOICES = new Set([
   "Sulafat",
 ]);
 
+function audioDataUrl(buffer: Buffer, contentType = "audio/wav") {
+  return `data:${contentType};base64,${buffer.toString("base64")}`;
+}
+
 function wavFromPcm(pcm: Buffer, sampleRate = 24000, channels = 1, bitDepth = 16) {
   const byteRate = (sampleRate * channels * bitDepth) / 8;
   const blockAlign = (channels * bitDepth) / 8;
@@ -66,73 +70,151 @@ function audioPrompt(text: string) {
   ].join("\n");
 }
 
+async function synthesizeWithGemini(text: string, requestedVoice: string) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Gemini API key is not configured.");
+  }
+
+  const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+  const envVoice = process.env.GEMINI_TTS_VOICE || "Kore";
+  const voice = GEMINI_VOICES.has(requestedVoice)
+    ? requestedVoice
+    : GEMINI_VOICES.has(envVoice)
+      ? envVoice
+      : "Kore";
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": process.env.GEMINI_API_KEY,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: audioPrompt(text) }],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voice,
+            },
+          },
+        },
+      },
+      model,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Gemini TTS request failed.");
+  }
+
+  const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!audioData || typeof audioData !== "string") {
+    throw new Error("Gemini did not return audio.");
+  }
+
+  const pcm = Buffer.from(audioData, "base64");
+  const wav = wavFromPcm(pcm);
+
+  return {
+    audio: audioDataUrl(wav),
+    model,
+    voice,
+    provider: "gemini",
+  };
+}
+
+async function synthesizeWithThonburian(text: string) {
+  const endpoint = process.env.THONBURIAN_TTS_URL;
+  if (!endpoint) {
+    throw new Error("ThonburianTTS endpoint is not configured.");
+  }
+
+  const model = process.env.THONBURIAN_TTS_MODEL || "ThonburianTTS";
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.THONBURIAN_TTS_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.THONBURIAN_TTS_API_KEY}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      input: text,
+      text,
+      voice: "ThonburianTTS",
+      language: "th",
+      response_format: "wav",
+    }),
+  });
+
+  const contentType = response.headers.get("content-type") || "audio/wav";
+  if (!response.ok) {
+    const errorData = contentType.includes("application/json") ? await response.json().catch(() => ({})) : {};
+    throw new Error(errorData.message || errorData.error?.message || "ThonburianTTS request failed.");
+  }
+
+  if (contentType.startsWith("audio/")) {
+    const audio = Buffer.from(await response.arrayBuffer());
+    return {
+      audio: audioDataUrl(audio, contentType.split(";")[0]),
+      model,
+      voice: "ThonburianTTS",
+      provider: "thonburian",
+    };
+  }
+
+  const data = await response.json().catch(() => ({}));
+  const base64Audio = data.audio || data.audioContent || data.audio_base64 || data.data?.audio;
+  if (!base64Audio || typeof base64Audio !== "string") {
+    throw new Error("ThonburianTTS did not return audio.");
+  }
+
+  const normalizedAudio = base64Audio.startsWith("data:")
+    ? base64Audio
+    : `data:${data.contentType || data.content_type || "audio/wav"};base64,${base64Audio}`;
+
+  return {
+    audio: normalizedAudio,
+    model,
+    voice: "ThonburianTTS",
+    provider: "thonburian",
+  };
+}
+
 export async function POST(request: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ message: "Gemini API key is not configured." }, { status: 500 });
-    }
-
     const body = await request.json();
     const text = String(body.text || "").trim().slice(0, 4000);
     if (!text) {
       return NextResponse.json({ message: "Missing text." }, { status: 400 });
     }
 
-    const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+    const provider = body.provider === "thonburian" ? "thonburian" : "gemini";
     const requestedVoice = String(body.voice || "").trim();
-    const envVoice = process.env.GEMINI_TTS_VOICE || "Kore";
-    const voice = GEMINI_VOICES.has(requestedVoice)
-      ? requestedVoice
-      : GEMINI_VOICES.has(envVoice)
-        ? envVoice
-        : "Kore";
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: audioPrompt(text) }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voice,
-              },
-            },
-          },
-        },
-        model,
-      }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return NextResponse.json(
-        { message: data.error?.message || "Gemini TTS request failed." },
-        { status: response.status },
-      );
+    if (provider === "thonburian") {
+      try {
+        return NextResponse.json(await synthesizeWithThonburian(text));
+      } catch (error) {
+        const fallback = await synthesizeWithGemini(text, requestedVoice);
+        return NextResponse.json({
+          ...fallback,
+          fallbackFrom: "thonburian",
+          fallbackReason: error instanceof Error ? error.message : "ThonburianTTS unavailable.",
+        });
+      }
     }
 
-    const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!audioData || typeof audioData !== "string") {
-      return NextResponse.json({ message: "Gemini did not return audio." }, { status: 502 });
-    }
-
-    const pcm = Buffer.from(audioData, "base64");
-    const wav = wavFromPcm(pcm);
-
-    return NextResponse.json({
-      audio: `data:audio/wav;base64,${wav.toString("base64")}`,
-      model,
-      voice,
-    });
+    return NextResponse.json(await synthesizeWithGemini(text, requestedVoice));
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "TTS server error." },
