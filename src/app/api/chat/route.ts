@@ -27,6 +27,11 @@ function normalizeMessages(messages: unknown): IncomingMessage[] {
     .slice(-20);
 }
 
+function directorGreeting(content: string) {
+  const normalized = content.trim().toLowerCase();
+  return normalized === "สวัสดี" || normalized.startsWith("สวัสดี ");
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -35,6 +40,14 @@ export async function POST(request: Request) {
 
     if (!lastUserMessage) {
       return NextResponse.json({ message: "Missing user message." }, { status: 400 });
+    }
+
+    if (directorGreeting(lastUserMessage.content)) {
+      return NextResponse.json({
+        text: "มีอะไรให้ผมรับใช้ครับ ผอ.",
+        contextCount: 0,
+        usage: null,
+      });
     }
 
     const context = await searchKnowledge(lastUserMessage.content);
