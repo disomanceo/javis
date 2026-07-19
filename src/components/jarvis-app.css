@@ -181,14 +181,14 @@ select {
   display: contents;
 }
 
-.side-panel .tool-panel:first-of-type {
+.voice-controls-panel {
   grid-column: 1;
   grid-row: 1 / 5;
   min-height: 0;
   overflow-x: hidden;
 }
 
-.side-panel .tool-panel:last-of-type {
+.memory-panel {
   grid-column: 3;
   grid-row: 1 / 5;
   min-height: 0;
@@ -323,7 +323,7 @@ select {
   padding: 0 12px;
 }
 
-.side-panel .tool-panel:first-of-type .button-row {
+.voice-controls-panel .button-row {
   grid-template-columns: 1fr;
 }
 
@@ -408,7 +408,7 @@ select {
     grid-template-rows: 86px minmax(320px, 40vh) minmax(0, 1fr) auto auto;
   }
 
-  .side-panel .tool-panel:last-of-type {
+  .memory-panel {
     grid-column: 1 / 3;
     grid-row: 5;
   }
@@ -432,8 +432,8 @@ select {
   .hologram-panel,
   .messages,
   .composer,
-  .side-panel .tool-panel:first-of-type,
-  .side-panel .tool-panel:last-of-type {
+  .voice-controls-panel,
+  .memory-panel {
     grid-column: 1;
     grid-row: auto;
   }

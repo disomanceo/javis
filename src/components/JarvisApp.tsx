@@ -403,7 +403,7 @@ export function JarvisApp() {
       <aside className="side-panel" aria-label="Jarvis controls and knowledge">
         <JarvisHologram mode={hologramMode} audioLevel={audioLevel} />
 
-        <section className="tool-panel">
+        <section className="tool-panel voice-controls-panel">
           <h2>
             <Volume2 size={18} />
             เสียงตอบกลับ
@@ -488,7 +488,7 @@ export function JarvisApp() {
           </div>
         </section>
 
-        <section className="tool-panel">
+        <section className="tool-panel memory-panel">
           <h2>
             <BookOpen size={18} />
             ฐานข้อมูลความรู้
