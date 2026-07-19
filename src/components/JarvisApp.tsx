@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { BookOpen, Eraser, Mic2, Send, Square, Volume2 } from "lucide-react";
+import { JarvisHologram, type HologramMode } from "@/components/JarvisHologram";
 import "./jarvis-app.css";
 
 type ChatMessage = {
@@ -73,6 +74,8 @@ export function JarvisApp() {
   ]);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState("พร้อมสนทนา");
+  const [hologramMode, setHologramMode] = useState<HologramMode>("idle");
+  const [audioLevel, setAudioLevel] = useState(0);
   const [busy, setBusy] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [ttsProvider, setTtsProvider] = useState<TtsProvider>("browser");
@@ -83,6 +86,8 @@ export function JarvisApp() {
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
   const messagesRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -142,8 +147,45 @@ export function JarvisApp() {
     }
     utterance.rate = 1;
     utterance.pitch = 0.95;
+    utterance.onstart = () => setHologramMode("speaking");
+    utterance.onend = () => setHologramMode("idle");
+    utterance.onerror = () => setHologramMode("alert");
     window.speechSynthesis.speak(utterance);
     setStatus(`กำลังเล่นเสียง ${selectedVoice?.name || "Browser / Microsoft"}`);
+  }
+
+  function stopAudioLevelMeter() {
+    if (analyserFrameRef.current !== null) {
+      cancelAnimationFrame(analyserFrameRef.current);
+      analyserFrameRef.current = null;
+    }
+    setAudioLevel(0);
+  }
+
+  function startAudioLevelMeter(audio: HTMLAudioElement) {
+    stopAudioLevelMeter();
+    const context = audioContextRef.current || new AudioContext();
+    audioContextRef.current = context;
+    if (context.state === "suspended") void context.resume();
+
+    const source = context.createMediaElementSource(audio);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    analyser.connect(context.destination);
+
+    const samples = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const sample of samples) {
+        const centered = (sample - 128) / 128;
+        sum += centered * centered;
+      }
+      setAudioLevel(Math.min(1, Math.sqrt(sum / samples.length) * 3.2));
+      analyserFrameRef.current = requestAnimationFrame(tick);
+    };
+    tick();
   }
 
   async function speak(text: string, options: { force?: boolean } = {}) {
@@ -158,6 +200,7 @@ export function JarvisApp() {
       }
 
       setStatus(`กำลังสร้างเสียง ${ttsProviderLabel(ttsProvider, geminiVoice)}...`);
+      setHologramMode("thinking");
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,6 +211,15 @@ export function JarvisApp() {
 
       const audio = new Audio(data.audio);
       audioRef.current = audio;
+      audio.onplay = () => {
+        startAudioLevelMeter(audio);
+        setHologramMode("speaking");
+      };
+      audio.onended = () => {
+        stopAudioLevelMeter();
+        setHologramMode("idle");
+      };
+      audio.onerror = () => setHologramMode("alert");
       await audio.play();
       setStatus(`กำลังเล่นเสียง ${data.voice || ttsProviderLabel(ttsProvider, geminiVoice)}`);
     } catch (error) {
@@ -197,6 +249,7 @@ export function JarvisApp() {
     setMessages(nextMessages);
     setPrompt("");
     setBusy(true);
+    setHologramMode("thinking");
     setStatus("กำลังค้น Firebase และถาม Claude...");
 
     try {
@@ -213,6 +266,7 @@ export function JarvisApp() {
       if (data.savedKnowledge) {
         setKnowledge((current) => [data.savedKnowledge, ...current].slice(0, 12));
       }
+      if (!speechEnabled) setHologramMode(data.operationResult?.success || data.savedKnowledge ? "alert" : "idle");
       void speak(answer);
       setStatus(
         data.savedKnowledge
@@ -301,6 +355,8 @@ export function JarvisApp() {
       </section>
 
       <aside className="side-panel" aria-label="Jarvis controls and knowledge">
+        <JarvisHologram mode={hologramMode} audioLevel={audioLevel} />
+
         <section className="tool-panel">
           <h2>
             <Volume2 size={18} />
@@ -368,6 +424,8 @@ export function JarvisApp() {
               onClick={() => {
                 window.speechSynthesis?.cancel();
                 audioRef.current?.pause();
+                stopAudioLevelMeter();
+                setHologramMode("idle");
               }}
             >
               <Square size={16} />

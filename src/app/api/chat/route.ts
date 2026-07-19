@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { claudeModel, getClaude } from "@/lib/claude";
+import {
+  closePendingAction,
+  createPendingAction,
+  findLatestPendingAction,
+  resolvePendingAction,
+  updatePendingAction,
+} from "@/lib/conversation/pendingActions";
+import { analyzeThaiIntent, buildLocalRequestContext } from "@/lib/intent/analyzer";
 import { addKnowledge, searchKnowledge } from "@/lib/knowledge";
+import { commitAssistantIntent } from "@/lib/services/assistantService";
 
 export const runtime = "nodejs";
 
@@ -8,6 +17,21 @@ type IncomingMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+const STRUCTURED_MUTATION_INTENTS = new Set([
+  "create_event",
+  "create_task",
+  "create_reminder",
+  "save_memory",
+  "update_event",
+  "update_task",
+  "cancel_event",
+  "cancel_reminder",
+  "complete_task",
+  "complete_reminder",
+  "snooze_reminder",
+  "create_recurring_event",
+]);
 
 function normalizeMessages(messages: unknown): IncomingMessage[] {
   if (!Array.isArray(messages)) return [];
@@ -167,6 +191,18 @@ function previousUserMessage(messages: IncomingMessage[]) {
   return users.length >= 2 ? users[users.length - 2] : null;
 }
 
+function shouldAnalyzeWithIntentEngine(content: string) {
+  return (
+    /จำ|บันทึก|เตือน|นัด|ประชุม|อบรม|นิเทศ|ส่งรายงาน|งาน|วันนี้|พรุ่งนี้|มะรืน|วันจันทร์|วันอังคาร|วันพุธ|วันพฤหัส|วันศุกร์|วันเสาร์|วันอาทิตย์|เลื่อน|ยกเลิก|เสร็จแล้ว/.test(
+      content,
+    ) && content.trim().length <= 1000
+  );
+}
+
+function shouldKeepPending(errorCode: unknown) {
+  return errorCode === "MISSING_REQUIRED_FIELDS" || errorCode === "CONFIRMATION_REQUIRED";
+}
+
 async function saveChatMemory(content: string) {
   const event = eventMemory(content);
   if (event) {
@@ -211,6 +247,100 @@ export async function POST(request: Request) {
         contextCount: 0,
         usage: null,
       });
+    }
+
+    const requestContext = buildLocalRequestContext();
+    const pending = await findLatestPendingAction(requestContext).catch(() => null);
+    if (pending) {
+      const resolved = resolvePendingAction(pending, lastUserMessage.content);
+
+      if (resolved.status === "cancelled") {
+        await closePendingAction(pending.id, "cancelled").catch(() => undefined);
+        return NextResponse.json({
+          text: resolved.safeMessage,
+          contextCount: 0,
+          usage: null,
+        });
+      }
+
+      if (resolved.status === "merged") {
+        const serviceResult = await commitAssistantIntent({
+          intent: resolved.intent,
+          requestContext,
+          sourceText: resolved.sourceText,
+          modelName: pending.modelName,
+          modelRequestId: pending.modelRequestId || requestContext.requestId,
+          confirmed: resolved.confirmed,
+        });
+
+        if (serviceResult.success) {
+          await closePendingAction(pending.id, "committed").catch(() => undefined);
+        } else if (shouldKeepPending(serviceResult.errorCode)) {
+          await updatePendingAction({
+            id: pending.id,
+            intent: resolved.intent,
+            sourceText: resolved.sourceText,
+          }).catch(() => undefined);
+        } else {
+          await closePendingAction(pending.id, "cancelled").catch(() => undefined);
+        }
+
+        return NextResponse.json({
+          text: serviceResult.safeMessage,
+          contextCount: 0,
+          usage: null,
+          intent: resolved.intent,
+          operationResult: serviceResult,
+        });
+      }
+    }
+
+    if (shouldAnalyzeWithIntentEngine(lastUserMessage.content)) {
+      const intentAnalysis = await analyzeThaiIntent({
+        utterance: lastUserMessage.content,
+        requestContext,
+      });
+
+      if (!intentAnalysis.ok) {
+        return NextResponse.json({
+          text: intentAnalysis.safeMessage,
+          contextCount: 0,
+          usage: null,
+          intentError: {
+            code: intentAnalysis.errorCode,
+            retryable: intentAnalysis.retryable,
+          },
+        });
+      }
+
+      const intent = intentAnalysis.intent;
+      if (STRUCTURED_MUTATION_INTENTS.has(intent.intent)) {
+        const serviceResult = await commitAssistantIntent({
+          intent,
+          requestContext,
+          sourceText: lastUserMessage.content,
+          modelName: intentAnalysis.model,
+          modelRequestId: requestContext.requestId,
+        });
+
+        if (!serviceResult.success && shouldKeepPending(serviceResult.errorCode)) {
+          await createPendingAction({
+            requestContext,
+            intent,
+            sourceText: lastUserMessage.content,
+            modelName: intentAnalysis.model,
+            modelRequestId: requestContext.requestId,
+          }).catch(() => undefined);
+        }
+
+        return NextResponse.json({
+          text: serviceResult.safeMessage,
+          contextCount: 0,
+          usage: null,
+          intent,
+          operationResult: serviceResult,
+        });
+      }
     }
 
     const memoryContent = memoryRequest(lastUserMessage.content);

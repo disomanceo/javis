@@ -10,7 +10,8 @@
 }
 
 .chat-panel,
-.tool-panel {
+.tool-panel,
+.hologram-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(16, 28, 24, 0.9);
@@ -173,6 +174,72 @@ select {
   gap: 14px;
 }
 
+.hologram-panel {
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(15, 122, 166, 0.28), transparent 42%),
+    linear-gradient(180deg, rgba(7, 19, 34, 0.96), rgba(3, 10, 20, 0.98));
+}
+
+.hologram-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(116, 225, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 225, 255, 0.045) 1px, transparent 1px);
+  background-size: 100% 12px, 12px 100%;
+  mask-image: radial-gradient(circle at center, black 0 58%, transparent 78%);
+}
+
+.hologram-panel canvas {
+  display: block;
+  width: 100%;
+  height: 300px;
+}
+
+.hologram-caption {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #aeeeff;
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 0 18px rgba(56, 214, 255, 0.8);
+}
+
+.hologram-caption span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #38d6ff;
+  box-shadow: 0 0 18px rgba(56, 214, 255, 0.9);
+}
+
+.hologram-speaking .hologram-caption,
+.hologram-listening .hologram-caption {
+  color: #e8fbff;
+}
+
+.hologram-alert .hologram-caption {
+  color: #ffc875;
+  text-shadow: 0 0 18px rgba(255, 177, 69, 0.8);
+}
+
+.hologram-alert .hologram-caption span {
+  background: #ffb145;
+  box-shadow: 0 0 18px rgba(255, 177, 69, 0.95);
+}
+
 .tool-panel h2 {
   display: flex;
   align-items: center;
@@ -270,6 +337,14 @@ select {
   .chat-panel {
     height: calc(100dvh - 32px);
     min-height: 72vh;
+  }
+
+  .hologram-panel {
+    min-height: 240px;
+  }
+
+  .hologram-panel canvas {
+    height: 240px;
   }
 
   .app-header {
