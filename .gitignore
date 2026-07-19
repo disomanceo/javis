@@ -4,6 +4,7 @@
 .vercel
 out
 node_modules
+tools
 .venv
 **/.venv
 .hf-cache

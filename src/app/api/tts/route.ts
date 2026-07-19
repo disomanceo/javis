@@ -35,6 +35,8 @@ const GEMINI_VOICES = new Set([
   "Sulafat",
 ]);
 
+const MMS_TTS_FALLBACK_URL = "https://trademarks-side-denver-hammer.trycloudflare.com/synthesize";
+
 function audioDataUrl(buffer: Buffer, contentType = "audio/wav") {
   return `data:${contentType};base64,${buffer.toString("base64")}`;
 }
@@ -192,7 +194,7 @@ async function synthesizeWithThonburian(text: string) {
 }
 
 async function synthesizeWithMms(text: string) {
-  const endpoint = process.env.MMS_TTS_URL;
+  const endpoint = process.env.MMS_TTS_URL || MMS_TTS_FALLBACK_URL;
   if (!endpoint) {
     throw new Error("MMS-TTS Thai endpoint is not configured. Deploy the MMS server and set MMS_TTS_URL to its /synthesize URL.");
   }
