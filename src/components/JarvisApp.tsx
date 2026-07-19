@@ -363,8 +363,8 @@ export function JarvisApp() {
       <section className="chat-panel" aria-label="Jarvis chat">
         <header className="app-header">
           <div>
-            <p>Jarvis React + Firebase</p>
-            <h1>Jarvis</h1>
+            <p>Javis ผู้ช่วย ผอ.สุธน</p>
+            <h1>Javis</h1>
           </div>
           <div className={`status ${busy ? "busy" : ""}`}>
             <span />
@@ -530,7 +530,7 @@ export function JarvisApp() {
             )}
           </div>
           <div className="knowledge-list">
-            {knowledge.map((item) => (
+            {knowledge.slice(0, 7).map((item) => (
               <article key={item.id}>
                 <strong>{item.title}</strong>
                 <p>{item.content}</p>
