@@ -8,8 +8,10 @@ import {
   updatePendingAction,
 } from "@/lib/conversation/pendingActions";
 import { analyzeThaiIntent, buildLocalRequestContext } from "@/lib/intent/analyzer";
+import { normalizeIntentDatesFromSource } from "@/lib/intent/normalizeIntent";
 import { addKnowledge, searchKnowledge } from "@/lib/knowledge";
 import { commitAssistantIntent } from "@/lib/services/assistantService";
+import { querySchedule } from "@/lib/services/scheduleQueryService";
 
 export const runtime = "nodejs";
 
@@ -32,6 +34,8 @@ const STRUCTURED_MUTATION_INTENTS = new Set([
   "snooze_reminder",
   "create_recurring_event",
 ]);
+
+const STRUCTURED_QUERY_INTENTS = new Set(["query_schedule"]);
 
 function normalizeMessages(messages: unknown): IncomingMessage[] {
   if (!Array.isArray(messages)) return [];
@@ -264,8 +268,12 @@ export async function POST(request: Request) {
       }
 
       if (resolved.status === "merged") {
-        const serviceResult = await commitAssistantIntent({
+        const normalizedIntent = normalizeIntentDatesFromSource({
           intent: resolved.intent,
+          sourceText: resolved.sourceText,
+        });
+        const serviceResult = await commitAssistantIntent({
+          intent: normalizedIntent,
           requestContext,
           sourceText: resolved.sourceText,
           modelName: pending.modelName,
@@ -278,7 +286,7 @@ export async function POST(request: Request) {
         } else if (shouldKeepPending(serviceResult.errorCode)) {
           await updatePendingAction({
             id: pending.id,
-            intent: resolved.intent,
+            intent: normalizedIntent,
             sourceText: resolved.sourceText,
           }).catch(() => undefined);
         } else {
@@ -289,7 +297,7 @@ export async function POST(request: Request) {
           text: serviceResult.safeMessage,
           contextCount: 0,
           usage: null,
-          intent: resolved.intent,
+          intent: normalizedIntent,
           operationResult: serviceResult,
         });
       }
@@ -313,7 +321,10 @@ export async function POST(request: Request) {
         });
       }
 
-      const intent = intentAnalysis.intent;
+      const intent = normalizeIntentDatesFromSource({
+        intent: intentAnalysis.intent,
+        sourceText: lastUserMessage.content,
+      });
       if (STRUCTURED_MUTATION_INTENTS.has(intent.intent)) {
         const serviceResult = await commitAssistantIntent({
           intent,
@@ -336,6 +347,22 @@ export async function POST(request: Request) {
         return NextResponse.json({
           text: serviceResult.safeMessage,
           contextCount: 0,
+          usage: null,
+          intent,
+          operationResult: serviceResult,
+        });
+      }
+
+      if (STRUCTURED_QUERY_INTENTS.has(intent.intent)) {
+        const serviceResult = await querySchedule({
+          intent,
+          requestContext,
+          sourceText: lastUserMessage.content,
+        });
+
+        return NextResponse.json({
+          text: serviceResult.safeMessage,
+          contextCount: serviceResult.count,
           usage: null,
           intent,
           operationResult: serviceResult,
