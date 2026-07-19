@@ -18,6 +18,13 @@ type KnowledgeItem = {
   createdAt?: string;
 };
 
+type SaveRecord = {
+  id: string;
+  title: string;
+  detail: string;
+  savedAt: string;
+};
+
 type GeminiVoiceOption = {
   name: string;
   style: string;
@@ -84,6 +91,7 @@ export function JarvisApp() {
   const [voiceIndex, setVoiceIndex] = useState("0");
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
+  const [saveRecords, setSaveRecords] = useState<SaveRecord[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -233,6 +241,27 @@ export function JarvisApp() {
     void speak(`ทดสอบเสียง ${selected} ครับ ผอ.`, { force: true });
   }
 
+  function rememberSavedRecord(input: { title?: string | null; detail?: string | null; id?: string | null }) {
+    const savedAt = new Intl.DateTimeFormat("th-TH", {
+      timeZone: "Asia/Bangkok",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date());
+
+    setSaveRecords((current) =>
+      [
+        {
+          id: input.id || `${Date.now()}`,
+          title: input.title?.trim() || "บันทึกข้อมูลแล้ว",
+          detail: input.detail?.trim() || "บันทึกลง Firebase สำเร็จ",
+          savedAt,
+        },
+        ...current,
+      ].slice(0, 5),
+    );
+  }
+
   async function loadKnowledge() {
     const response = await fetch("/api/knowledge");
     const data = await response.json();
@@ -265,6 +294,18 @@ export function JarvisApp() {
       setMessages((current) => [...current, { role: "assistant", content: answer }]);
       if (data.savedKnowledge) {
         setKnowledge((current) => [data.savedKnowledge, ...current].slice(0, 12));
+        rememberSavedRecord({
+          id: data.savedKnowledge.id,
+          title: data.savedKnowledge.title,
+          detail: "บันทึกเข้าฐานข้อมูลความจำ",
+        });
+      }
+      if (data.operationResult?.success) {
+        rememberSavedRecord({
+          id: data.operationResult.recordId,
+          title: data.operationResult.record?.title || data.operationResult.operation,
+          detail: `บันทึกเป็น ${data.operationResult.entityType}`,
+        });
       }
       if (!speechEnabled) setHologramMode(data.operationResult?.success || data.savedKnowledge ? "alert" : "idle");
       void speak(answer);
@@ -306,6 +347,11 @@ export function JarvisApp() {
     if (response.ok) {
       setKnowledgeForm({ title: "", content: "", tags: "" });
       setKnowledge((current) => [data.item, ...current].slice(0, 12));
+      rememberSavedRecord({
+        id: data.item?.id,
+        title: data.item?.title || knowledgeForm.title,
+        detail: "เพิ่มข้อมูลให้ Jarvis จำแล้ว",
+      });
       setStatus("บันทึกข้อมูลแล้ว");
     } else {
       setStatus(data.message || "บันทึกข้อมูลไม่ได้");
@@ -469,6 +515,20 @@ export function JarvisApp() {
               เพิ่มให้ Jarvis จำ
             </button>
           </form>
+          <div className="save-log" aria-live="polite">
+            <strong>บันทึกล่าสุด</strong>
+            {saveRecords.length ? (
+              saveRecords.map((record) => (
+                <article key={`${record.id}-${record.savedAt}`}>
+                  <span>{record.savedAt}</span>
+                  <p>{record.title}</p>
+                  <small>{record.detail}</small>
+                </article>
+              ))
+            ) : (
+              <p className="empty-save-log">ยังไม่มีรายการบันทึกในรอบนี้</p>
+            )}
+          </div>
           <div className="knowledge-list">
             {knowledge.map((item) => (
               <article key={item.id}>

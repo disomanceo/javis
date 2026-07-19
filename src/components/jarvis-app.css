@@ -1,13 +1,14 @@
 .jarvis-shell {
   width: min(1540px, calc(100% - 28px));
-  min-height: 100vh;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 28px 0;
+  padding: 16px 0;
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(560px, 1fr) minmax(300px, 360px);
-  grid-template-rows: auto minmax(360px, 46vh) minmax(250px, 1fr) auto;
+  grid-template-rows: minmax(70px, auto) minmax(330px, 43vh) minmax(0, 1fr) auto;
   align-items: stretch;
-  gap: 18px;
+  gap: 12px;
+  overflow: hidden;
 }
 
 .tool-panel,
@@ -25,7 +26,7 @@
 .app-header {
   grid-column: 2;
   grid-row: 1;
-  padding: 22px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -37,15 +38,15 @@
 }
 
 .app-header p {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   color: var(--accent-2);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: clamp(2.3rem, 6vw, 4.8rem);
+  font-size: clamp(1.8rem, 3.8vw, 3.1rem);
   line-height: 0.95;
 }
 
@@ -55,6 +56,9 @@
   gap: 9px;
   color: var(--muted);
   white-space: nowrap;
+  max-width: min(44vw, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status span {
@@ -73,6 +77,7 @@
   grid-column: 2;
   grid-row: 3;
   min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -197,7 +202,7 @@ select {
   grid-column: 2;
   grid-row: 2;
   position: relative;
-  min-height: 360px;
+  min-height: 330px;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 45%, rgba(15, 122, 166, 0.28), transparent 42%),
@@ -220,7 +225,7 @@ select {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 360px;
+  min-height: 330px;
 }
 
 .hologram-caption {
@@ -318,6 +323,46 @@ select {
   gap: 10px;
 }
 
+.save-log {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(36, 210, 155, 0.34);
+  border-radius: 8px;
+  background: rgba(11, 23, 19, 0.84);
+}
+
+.save-log > strong {
+  color: var(--accent-2);
+  font-size: 0.88rem;
+}
+
+.save-log article {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(21, 55, 47, 0.7);
+}
+
+.save-log span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.save-log p,
+.empty-save-log {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.save-log small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .knowledge-list {
   display: grid;
   gap: 10px;
@@ -350,9 +395,12 @@ select {
 
 @media (max-width: 920px) {
   .jarvis-shell {
+    height: auto;
+    min-height: 100dvh;
     grid-template-columns: 1fr;
     grid-template-rows: auto;
     padding: 16px 0;
+    overflow: visible;
   }
 
   .chat-panel {
@@ -370,11 +418,11 @@ select {
   }
 
   .hologram-panel {
-    min-height: 320px;
+    min-height: 300px;
   }
 
   .hologram-panel canvas {
-    min-height: 320px;
+    min-height: 300px;
   }
 
   .app-header {
