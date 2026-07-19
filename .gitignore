@@ -4,6 +4,13 @@
 .vercel
 out
 node_modules
+.venv
+**/.venv
+.hf-cache
+**/.hf-cache
+__pycache__
+**/__pycache__
+*.wav
 *.log
 firebase-service-account*.json
 *firebase-adminsdk*.json

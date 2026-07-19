@@ -9,6 +9,18 @@ pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 7860
 ```
 
+On this Windows workspace, use:
+
+```bat
+run-local.cmd
+```
+
+Stop the local server:
+
+```bat
+stop-local.cmd
+```
+
 Test:
 
 ```bash
