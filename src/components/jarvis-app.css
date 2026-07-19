@@ -1,15 +1,15 @@
 .jarvis-shell {
-  width: min(1280px, calc(100% - 28px));
+  width: min(1540px, calc(100% - 28px));
   min-height: 100vh;
   margin: 0 auto;
   padding: 28px 0;
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 300px) minmax(560px, 1fr) minmax(300px, 360px);
+  grid-template-rows: auto minmax(360px, 46vh) minmax(250px, 1fr) auto;
   align-items: stretch;
   gap: 18px;
 }
 
-.chat-panel,
 .tool-panel,
 .hologram-panel {
   border: 1px solid var(--line);
@@ -19,22 +19,21 @@
 }
 
 .chat-panel {
-  grid-column: 2;
-  grid-row: 1;
-  height: calc(100dvh - 56px);
-  min-height: 620px;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: contents;
 }
 
 .app-header {
+  grid-column: 2;
+  grid-row: 1;
   padding: 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 28, 24, 0.9);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 .app-header p {
@@ -71,14 +70,20 @@
 }
 
 .messages {
+  grid-column: 2;
+  grid-row: 3;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 22px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 28, 24, 0.9);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 .messages::before {
@@ -87,7 +92,7 @@
 }
 
 .message {
-  width: min(780px, 100%);
+  width: min(920px, 96%);
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -114,11 +119,16 @@
 }
 
 .composer {
+  grid-column: 2;
+  grid-row: 4;
   padding: 18px;
   display: grid;
   grid-template-columns: 1fr 56px;
   gap: 12px;
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 28, 24, 0.9);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 textarea,
@@ -161,22 +171,33 @@ select {
 }
 
 .side-panel {
+  display: contents;
+}
+
+.side-panel .tool-panel:first-of-type {
   grid-column: 1;
-  grid-row: 1;
-  display: grid;
-  align-self: start;
-  gap: 18px;
+  grid-row: 1 / 5;
+}
+
+.side-panel .tool-panel:last-of-type {
+  grid-column: 3;
+  grid-row: 1 / 5;
 }
 
 .tool-panel {
   padding: 18px;
   display: grid;
   gap: 14px;
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
 }
 
 .hologram-panel {
+  grid-column: 2;
+  grid-row: 2;
   position: relative;
-  min-height: 300px;
+  min-height: 360px;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 45%, rgba(15, 122, 166, 0.28), transparent 42%),
@@ -198,7 +219,8 @@ select {
 .hologram-panel canvas {
   display: block;
   width: 100%;
-  height: 300px;
+  height: 100%;
+  min-height: 360px;
 }
 
 .hologram-caption {
@@ -270,7 +292,7 @@ select {
 
 .button-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -287,6 +309,10 @@ select {
   font-weight: 800;
 }
 
+.side-panel .tool-panel:first-of-type .button-row {
+  grid-template-columns: 1fr;
+}
+
 .knowledge-form {
   display: grid;
   gap: 10px;
@@ -295,7 +321,7 @@ select {
 .knowledge-list {
   display: grid;
   gap: 10px;
-  max-height: 260px;
+  max-height: none;
   overflow: auto;
 }
 
@@ -325,26 +351,30 @@ select {
 @media (max-width: 920px) {
   .jarvis-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
     padding: 16px 0;
   }
 
-  .side-panel,
   .chat-panel {
-    grid-column: auto;
+    display: contents;
+  }
+
+  .app-header,
+  .hologram-panel,
+  .messages,
+  .composer,
+  .side-panel .tool-panel:first-of-type,
+  .side-panel .tool-panel:last-of-type {
+    grid-column: 1;
     grid-row: auto;
   }
 
-  .chat-panel {
-    height: calc(100dvh - 32px);
-    min-height: 72vh;
-  }
-
   .hologram-panel {
-    min-height: 240px;
+    min-height: 320px;
   }
 
   .hologram-panel canvas {
-    height: 240px;
+    min-height: 320px;
   }
 
   .app-header {
