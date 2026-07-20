@@ -14,6 +14,7 @@ type KnowledgeItem = {
   id: string;
   title: string;
   content: string;
+  sentence?: string;
   tags: string[];
   createdAt?: string;
 };
@@ -410,7 +411,7 @@ export function JarvisApp() {
           {knowledge.slice(0, 7).map((item) => (
             <article key={item.id}>
               <strong>{item.title}</strong>
-              <p>{item.content}</p>
+              <p>{item.sentence || item.content}</p>
             </article>
           ))}
         </div>
@@ -486,12 +487,14 @@ export function JarvisApp() {
     if (!knowledgeForm.title.trim() || !knowledgeForm.content.trim()) return;
     setStatus("กำลังบันทึกข้อมูลเข้า Firebase...");
 
+    const sentence = `บันทึกว่า ${knowledgeForm.title.trim()} : ${knowledgeForm.content.trim()}`;
     const response = await fetch("/api/knowledge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: knowledgeForm.title,
         content: knowledgeForm.content,
+        sentence,
         tags: knowledgeForm.tags
           .split(",")
           .map((tag) => tag.trim())

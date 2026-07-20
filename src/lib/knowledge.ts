@@ -5,8 +5,16 @@ export type KnowledgeRecord = {
   id: string;
   title: string;
   content: string;
+  sentence?: string;
   tags: string[];
   createdAt?: string;
+};
+
+type AddKnowledgeInput = {
+  title: string;
+  content: string;
+  tags: string[];
+  sentence?: string;
 };
 
 function normalize(value: string) {
@@ -32,6 +40,7 @@ function mapDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): KnowledgeRecord {
     id: doc.id,
     title: String(data.title || ""),
     content: String(data.content || ""),
+    sentence: data.sentence ? String(data.sentence) : undefined,
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     createdAt,
   };
@@ -42,11 +51,13 @@ export async function listKnowledge(limit = 12) {
   return snapshot.docs.map(mapDoc);
 }
 
-export async function addKnowledge(input: { title: string; content: string; tags: string[] }) {
-  const searchTerms = keywords(`${input.title} ${input.content} ${input.tags.join(" ")}`);
+export async function addKnowledge(input: AddKnowledgeInput) {
+  const sentence = input.sentence?.trim() || `บันทึกว่า ${input.title.trim()} : ${input.content.trim()}`;
+  const searchTerms = keywords(`${input.title} ${input.content} ${input.tags.join(" ")} ${sentence}`);
   const doc = await getAdminDb().collection("jarvis_knowledge").add({
     title: input.title.trim(),
     content: input.content.trim(),
+    sentence,
     tags: input.tags,
     searchTerms,
     createdAt: FieldValue.serverTimestamp(),
@@ -57,6 +68,7 @@ export async function addKnowledge(input: { title: string; content: string; tags
     id: doc.id,
     title: input.title.trim(),
     content: input.content.trim(),
+    sentence,
     tags: input.tags,
   };
 }

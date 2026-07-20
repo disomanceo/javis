@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const title = String(body.title || "").trim();
     const content = String(body.content || "").trim();
+    const sentence = String(body.sentence || "").trim();
     const tags = Array.isArray(body.tags)
       ? body.tags.map((tag: unknown) => String(tag).trim()).filter(Boolean)
       : [];
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Title and content are required." }, { status: 400 });
     }
 
-    const item = await addKnowledge({ title, content, tags });
+    const item = await addKnowledge({ title, content, tags, sentence });
     return NextResponse.json({ item });
   } catch (error) {
     return NextResponse.json(
