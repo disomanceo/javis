@@ -95,6 +95,7 @@ function youtubeRequest(content: string) {
     /^(?:เปิด|เล่น)\s*(?:เพลง\s*)?(?:youtube|ยูทูบ)?\s*[:\-–—]?\s*(.+)$/i,
     /^(?:เปิด|เล่น)\s*(.+?)\s*(?:ใน\s*)?(?:youtube|ยูทูบ)$/i,
     /^(?:ค้นหา|search)\s*(?:เพลง\s*)?(.+)\s*(?:ใน\s*)?(?:youtube|ยูทูบ)?$/i,
+    /^(?:เปลี่ยน|เปลี่ยนเพลง|เปลี่ยนเป็น)\s*(?:เพลง\s*)?(.+?)\s*(?:ใน\s*)?(?:youtube|ยูทูบ)$/i,
   ];
 
   for (const pattern of patterns) {
@@ -103,6 +104,46 @@ function youtubeRequest(content: string) {
   }
 
   return null;
+}
+
+function youtubeControlRequest(content: string) {
+  const trimmed = content.trim();
+  const patterns = [
+    /^(?:หยุด|ปิด)\s*(?:เพลง|เสียง|ยูทูบ|youtube|เว็บยูทูบ|เว็บ)?\s*$/i,
+    /^(?:ปิด(?:เว็บ|แท็บ|หน้าต่าง))\s*(?:ยูทูบ|youtube)?\s*$/i,
+    /^(?:หยุด|ปิด)\s*(?:youtube|ยูทูบ)\s*(?:ได้ไหม|ด้วย|ให้หน่อย)?$/i,
+    /^(?:ออกจาก|ลาออกจาก)\s*(?:youtube|ยูทูบ)\s*$/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(trimmed));
+}
+
+function googleSearchRequest(content: string) {
+  const trimmed = content.trim();
+  const patterns = [
+    /^(?:ค้นหา|search)\s+(.+?)\s*(?:ใน\s*(?:google|กูเกิล|เว็บ))?\s*$/i,
+    /^(?:เปิดเว็บ(?:ค้นหา)?|ค้นหาในเว็บ)\s+(.+)$/i,
+    /^(?:google|กูเกิล)\s*(?:ค้นหา)?\s*[:\-–—]?\s*(.+)$/i,
+    /^(?:ค้นหา|search)\s*(?:เรื่อง|ข้อมูล)?\s*(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  return null;
+}
+
+function googleSearchControlRequest(content: string) {
+  const trimmed = content.trim();
+  const patterns = [
+    /^(?:ปิด|หยุด)\s*(?:เว็บ|แท็บ|หน้าต่าง|google|กูเกิล|search|ค้นหา)?\s*$/i,
+    /^(?:ออกจาก|ปิด)\s*(?:google|กูเกิล|search|ค้นหา)\s*$/i,
+    /^(?:ล้าง|หยุด)\s*(?:การค้นหา|search)\s*$/i,
+  ];
+
+  return patterns.some((pattern) => pattern.test(trimmed));
 }
 
 const THAI_MONTHS: Record<string, number> = {
@@ -309,6 +350,36 @@ export async function POST(request: Request) {
 
     if (!lastUserMessage) {
       return NextResponse.json({ message: "Missing user message." }, { status: 400 });
+    }
+
+    if (googleSearchControlRequest(lastUserMessage.content)) {
+      return NextResponse.json({
+        text: "ปิดการค้นหาเว็บให้แล้วครับ ผอ.",
+        contextCount: 0,
+        usage: null,
+        searchAction: "stop",
+      });
+    }
+
+    const googleQuery = googleSearchRequest(lastUserMessage.content);
+    if (googleQuery) {
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`;
+      return NextResponse.json({
+        text: `ค้นหา "${googleQuery}" บน Google ให้ครับ ผอ.`,
+        contextCount: 0,
+        usage: null,
+        searchUrl,
+        searchQuery: googleQuery,
+      });
+    }
+
+    if (youtubeControlRequest(lastUserMessage.content)) {
+      return NextResponse.json({
+        text: "ปิด YouTube ให้แล้วครับ ผอ.",
+        contextCount: 0,
+        usage: null,
+        youtubeAction: "stop",
+      });
     }
 
     const youtubeQuery = youtubeRequest(lastUserMessage.content);

@@ -95,6 +95,9 @@ export function JarvisApp() {
   const [saveRecords, setSaveRecords] = useState<SaveRecord[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
   const [youtubeQuery, setYoutubeQuery] = useState<string | null>(null);
+  const [searchUrl, setSearchUrl] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [searchWindow, setSearchWindow] = useState<Window | null>(null);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
   const [mobileMenuSection, setMobileMenuSection] = useState<"voice" | "memory">("voice");
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -463,6 +466,12 @@ export function JarvisApp() {
     setHologramMode("thinking");
     setStatus("กำลังค้น Firebase และถาม Claude...");
 
+    const searchMatch = googleSearchRequest(trimmed);
+    if (searchMatch) {
+      const popup = window.open("about:blank", "jarvis-google-search-window");
+      if (popup) setSearchWindow(popup);
+    }
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -471,6 +480,33 @@ export function JarvisApp() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Jarvis ตอบไม่ได้");
+
+      if (data.searchAction === "stop") {
+        if (searchWindow && !searchWindow.closed) {
+          searchWindow.close();
+        }
+        setSearchWindow(null);
+        setSearchUrl(null);
+        setSearchQuery(null);
+      }
+
+      if (data.searchUrl) {
+        if (searchWindow && !searchWindow.closed) {
+          searchWindow.location.href = data.searchUrl;
+          searchWindow.focus();
+          setSearchWindow(searchWindow);
+        } else {
+          const popup = window.open(data.searchUrl, "jarvis-google-search-window");
+          setSearchWindow(popup);
+        }
+        setSearchUrl(data.searchUrl);
+        setSearchQuery(data.searchQuery || null);
+      }
+
+      if (data.youtubeAction === "stop") {
+        setYoutubeUrl(null);
+        setYoutubeQuery(null);
+      }
 
       if (data.youtubeUrl) {
         setYoutubeUrl(data.youtubeUrl);
@@ -510,6 +546,23 @@ export function JarvisApp() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function googleSearchRequest(content: string) {
+    const trimmed = content.trim();
+    const patterns = [
+      /^(?:ค้นหา|search)\s+(.+?)\s*(?:ใน\s*(?:google|กูเกิล|เว็บ))?\s*$/i,
+      /^(?:เปิดเว็บ(?:ค้นหา)?|ค้นหาในเว็บ)\s+(.+)$/i,
+      /^(?:google|กูเกิล)\s*(?:ค้นหา)?\s*[:\-–—]?\s*(.+)$/i,
+      /^(?:ค้นหา|search)\s*(?:เรื่อง|ข้อมูล)?\s*(.+)$/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = trimmed.match(pattern);
+      if (match?.[1]?.trim()) return match[1].trim();
+    }
+
+    return null;
   }
 
   async function saveKnowledge(event: FormEvent<HTMLFormElement>) {
