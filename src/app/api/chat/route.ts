@@ -12,12 +12,22 @@ import { normalizeIntentDatesFromSource } from "@/lib/intent/normalizeIntent";
 import { addKnowledge, searchKnowledge } from "@/lib/knowledge";
 import { commitAssistantIntent } from "@/lib/services/assistantService";
 import { querySchedule } from "@/lib/services/scheduleQueryService";
+import { getAdminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
+import { formatThaiDateKey, resolveThaiDateFromText } from "@/lib/time/thaiDateTime";
 
 export const runtime = "nodejs";
 
 type IncomingMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+type EventMemory = {
+  title: string;
+  content: string;
+  dateText: string;
+  eventDate: string | null;
 };
 
 const STRUCTURED_MUTATION_INTENTS = new Set([
@@ -176,18 +186,58 @@ function eventMemory(content: string) {
   const hasEventSignal = /ต้อง|ว่าจะ|ไป|นัด|ประชุม|อบรม|สัมมนา|นิเทศ|ห้องเรียน|ฟังพระสวด|สอบ|ส่งงาน|เตือน|กำหนดการ|กิจกรรม|นักเรียน/.test(trimmed);
   if (!hasDateSignal || !hasEventSignal) return null;
 
-  const dateText = extractEventDate(trimmed) || "ยังไม่ระบุวันที่แน่ชัด";
+  const resolution = resolveThaiDateFromText(trimmed);
+  const dateText = resolution ? formatThaiDateKey(resolution.dateKey) : extractEventDate(trimmed) || "ยังไม่ระบุวันที่แน่ชัด";
   const title = trimmed.length > 70 ? `${trimmed.slice(0, 67)}...` : trimmed;
   return {
     title,
     content: [`ประเภท: เหตุการณ์/นัดหมาย`, `วันที่: ${dateText}`, `รายละเอียด: ${trimmed}`].join("\n"),
     dateText,
+    eventDate: resolution?.dateKey ?? null,
   };
 }
 
 function saveConfirmation(content: string) {
   const normalized = content.trim().toLowerCase();
   return /^(ใช่\s*)?(ช่วย)?บันทึก(ด้วย|เลย|ไว้|ให้หน่อย)?(ครับ|ค่ะ|คะ)?$|^จำไว้(ด้วย|เลย)?(ครับ|ค่ะ|คะ)?$|^เอาเลย(ครับ|ค่ะ|คะ)?$/.test(normalized);
+}
+
+function normalizeKey(value: string | null | undefined) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^ -\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function saveChatEvent(event: EventMemory, sourceText: string, requestContext: ReturnType<typeof buildLocalRequestContext>) {
+  const db = getAdminDb();
+  const doc = db.collection("users").doc(requestContext.user.id).collection("events").doc();
+  const data = {
+    id: doc.id,
+    userId: requestContext.user.id,
+    title: event.title,
+    titleKey: normalizeKey(event.title),
+    sourceText,
+    status: "active",
+    eventDate: event.eventDate,
+    startTime: null,
+    endTime: null,
+    startAt: null,
+    endAt: null,
+    location: null,
+    participants: [],
+    description: event.content,
+    priority: "normal",
+    timezone: "Asia/Bangkok",
+    createdBy: requestContext.user.id,
+    updatedBy: requestContext.user.id,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  await doc.set(data);
+  return data;
 }
 
 function previousUserMessage(messages: IncomingMessage[]) {
@@ -370,7 +420,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const memoryContent = memoryRequest(lastUserMessage.content);
+      const memoryContent = memoryRequest(lastUserMessage.content);
     if (memoryContent) {
       const saved = await saveChatMemory(memoryContent);
 
@@ -392,6 +442,25 @@ export async function POST(request: Request) {
         });
       }
 
+      const previousEvent = eventMemory(previous.content.trim());
+      if (previousEvent?.eventDate) {
+        const savedEvent = await saveChatEvent(previousEvent, previous.content.trim(), requestContext);
+        return NextResponse.json({
+          text: `ผมวิเคราะห์ว่าเป็นเหตุการณ์/นัดหมาย และบันทึกให้แล้วครับ ผอ.\nวันที่: ${previousEvent.dateText}\nหัวข้อ: ${savedEvent.title}`,
+          contextCount: 0,
+          usage: null,
+          operationResult: {
+            success: true,
+            operation: "create_event",
+            recordId: savedEvent.id,
+            entityType: "event",
+            record: savedEvent,
+            safeMessage: "บันทึกแล้วครับ",
+            warnings: [],
+          },
+        });
+      }
+
       const saved = await saveChatMemory(previous.content.trim());
 
       return NextResponse.json({
@@ -404,8 +473,25 @@ export async function POST(request: Request) {
 
     const event = eventMemory(lastUserMessage.content);
     if (event) {
-      const saved = await saveChatMemory(lastUserMessage.content.trim());
+      if (event.eventDate) {
+        const savedEvent = await saveChatEvent(event, lastUserMessage.content.trim(), requestContext);
+        return NextResponse.json({
+          text: `ผมวิเคราะห์ว่าเป็นเหตุการณ์/นัดหมาย และบันทึกให้แล้วครับ ผอ.\nวันที่: ${event.dateText}\nหัวข้อ: ${savedEvent.title}`,
+          contextCount: 0,
+          usage: null,
+          operationResult: {
+            success: true,
+            operation: "create_event",
+            recordId: savedEvent.id,
+            entityType: "event",
+            record: savedEvent,
+            safeMessage: "บันทึกแล้วครับ",
+            warnings: [],
+          },
+        });
+      }
 
+      const saved = await saveChatMemory(lastUserMessage.content.trim());
       return NextResponse.json({
         text: saved.text,
         contextCount: 0,

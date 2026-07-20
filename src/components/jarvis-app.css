@@ -418,6 +418,7 @@ select {
   .jarvis-shell {
     height: auto;
     min-height: 100dvh;
+    width: min(100% - 18px, 1280px);
     grid-template-columns: 1fr;
     grid-template-rows: auto;
     padding: 16px 0;
@@ -439,16 +440,56 @@ select {
   }
 
   .hologram-panel {
-    min-height: 300px;
+    min-height: 260px;
   }
 
   .hologram-panel canvas {
-    min-height: 300px;
+    min-height: 260px;
   }
 
   .app-header {
     display: grid;
     align-items: start;
+  }
+
+  .messages {
+    padding: 18px;
+    max-height: 55vh;
+  }
+
+  .message {
+    width: 100%;
+    max-width: none;
+  }
+
+  .tool-panel,
+  .composer,
+  .voice-controls-panel,
+  .memory-panel {
+    max-width: 100%;
+  }
+
+  .voice-controls-panel,
+  .memory-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 540px) {
+  .jarvis-shell {
+    width: min(100% - 18px, 100vw);
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .composer button {
+    width: 100%;
+  }
+
+  .button-row {
+    grid-template-columns: 1fr;
   }
 }
 
