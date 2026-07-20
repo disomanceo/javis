@@ -148,19 +148,60 @@ function extractMentionedWeekday(text: string) {
 
 export type ThaiDateResolution = {
   dateKey: string;
-  source: "today" | "tomorrow" | "day-after-tomorrow" | "explicit-date";
+  source: "today" | "tomorrow" | "day-after-tomorrow" | "explicit-date" | "week" | "month";
   mentionedWeekday?: string;
   weekdayMismatch?: {
     mentioned: string;
     actual: string;
   };
+  monthKey?: string;
+  weekKey?: string;
+  startDateKey?: string;
+  endDateKey?: string;
 };
+
+function buildMonthRange(year: number, month: number) {
+  const startDateKey = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const endDateKey = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return {
+    monthKey: `${year}-${String(month).padStart(2, "0")}`,
+    startDateKey,
+    endDateKey,
+  };
+}
+
+function buildWeekRange(dateKey: string) {
+  const weekday = weekdayIndexForDateKey(dateKey);
+  const offsetToMonday = (weekday + 6) % 7;
+  const startDateKey = addDaysToDateKey(dateKey, -offsetToMonday);
+  const endDateKey = addDaysToDateKey(startDateKey, 6);
+  return {
+    weekKey: `${startDateKey}_${endDateKey}`,
+    startDateKey,
+    endDateKey,
+  };
+}
 
 export function resolveThaiDateFromText(text: string, now = new Date()): ThaiDateResolution | null {
   const today = getBangkokDateKey(now);
   let resolved: ThaiDateResolution | null = null;
 
-  if (/มะรืน/.test(text)) {
+  if (/(?:สัปดาห์|อาทิตย์)นี้/.test(text)) {
+    Object.assign(resolved = { dateKey: today, source: "week" }, buildWeekRange(today));
+  } else if (/(?:สัปดาห์|อาทิตย์)หน้า/.test(text)) {
+    const thisWeek = buildWeekRange(today);
+    const startOfNextWeek = addDaysToDateKey(thisWeek.startDateKey, 7);
+    Object.assign(resolved = { dateKey: startOfNextWeek, source: "week" }, buildWeekRange(startOfNextWeek));
+  } else if (/เดือนนี้/.test(text)) {
+    const currentParts = getBangkokDateParts(now);
+    Object.assign(resolved = { dateKey: today, source: "month" }, buildMonthRange(currentParts.year, currentParts.month));
+  } else if (/เดือนหน้า/.test(text)) {
+    const currentParts = getBangkokDateParts(now);
+    const month = currentParts.month === 12 ? 1 : currentParts.month + 1;
+    const year = currentParts.month === 12 ? currentParts.year + 1 : currentParts.year;
+    Object.assign(resolved = { dateKey: `${year}-${String(month).padStart(2, "0")}-01`, source: "month" }, buildMonthRange(year, month));
+  } else if (/มะรืน/.test(text)) {
     resolved = { dateKey: addDaysToDateKey(today, 2), source: "day-after-tomorrow" };
   } else if (/พรุ่งนี้/.test(text)) {
     resolved = { dateKey: addDaysToDateKey(today, 1), source: "tomorrow" };
@@ -187,7 +228,40 @@ export function resolveThaiDateFromText(text: string, now = new Date()): ThaiDat
       };
     }
   }
+  if (!resolved) {
+    const plainDayMatch = text.match(/(?:วันที่|วัน\s*ที่)\s*(\d{1,2})\b/i);
+    if (plainDayMatch) {
+      const day = Number(plainDayMatch[1]);
+      const currentParts = getBangkokDateParts(now);
+      const currentMonth = currentParts.month;
+      const currentYear = currentParts.year;
 
+      const buildDateKey = (year: number, month: number, dayValue: number) =>
+        `${year}-${String(month).padStart(2, "0")}-${String(dayValue).padStart(2, "0")}`;
+
+      const isValidDateKey = (year: number, month: number, dayValue: number) => {
+        const date = new Date(Date.UTC(year, month - 1, dayValue));
+        return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === dayValue;
+      };
+
+      const trySameMonth = isValidDateKey(currentYear, currentMonth, day);
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+      const tryNextMonth = isValidDateKey(nextYear, nextMonth, day);
+
+      if (day >= currentParts.day && trySameMonth) {
+        resolved = {
+          dateKey: buildDateKey(currentYear, currentMonth, day),
+          source: "explicit-date",
+        };
+      } else if (tryNextMonth) {
+        resolved = {
+          dateKey: buildDateKey(nextYear, nextMonth, day),
+          source: "explicit-date",
+        };
+      }
+    }
+  }
   if (!resolved) return null;
 
   const mentioned = extractMentionedWeekday(text);

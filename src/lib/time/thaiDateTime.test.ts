@@ -30,4 +30,37 @@ describe("thai date time helpers", () => {
     expect(resolved?.dateKey).toBe("2026-07-24");
     expect(resolved?.weekdayMismatch).toBeUndefined();
   });
+
+  it("resolves plain day references like วันที่ 24 to the nearest valid upcoming date", () => {
+    const resolved = resolveThaiDateFromText("วันที่ 24 มีอะไรไหม", sundayInBangkok);
+
+    expect(resolved?.dateKey).toBe("2026-07-24");
+  });
+
+  it("resolves month references like เดือนนี้", () => {
+    const resolved = resolveThaiDateFromText("เดือนนี้ มีประชุมไหม", sundayInBangkok);
+
+    expect(resolved?.source).toBe("month");
+    expect(resolved?.monthKey).toBe("2026-07");
+    expect(resolved?.startDateKey).toBe("2026-07-01");
+    expect(resolved?.endDateKey).toBe("2026-07-31");
+  });
+
+  it("resolves week references like สัปดาห์นี้", () => {
+    const resolved = resolveThaiDateFromText("สัปดาห์นี้ มีประชุมไหม", sundayInBangkok);
+
+    expect(resolved?.source).toBe("week");
+    expect(resolved?.weekKey).toBe("2026-07-13_2026-07-19");
+    expect(resolved?.startDateKey).toBe("2026-07-13");
+    expect(resolved?.endDateKey).toBe("2026-07-19");
+  });
+
+  it("resolves week references like สัปดาห์หน้า", () => {
+    const resolved = resolveThaiDateFromText("สัปดาห์หน้า มีประชุมไหม", sundayInBangkok);
+
+    expect(resolved?.source).toBe("week");
+    expect(resolved?.weekKey).toBe("2026-07-20_2026-07-26");
+    expect(resolved?.startDateKey).toBe("2026-07-20");
+    expect(resolved?.endDateKey).toBe("2026-07-26");
+  });
 });

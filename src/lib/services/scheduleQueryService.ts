@@ -31,8 +31,8 @@ function eventTimeLabel(event: Record<string, unknown>) {
   return "ไม่ระบุเวลา";
 }
 
-function buildScheduleMessage(dateKey: string, records: Record<string, unknown>[]) {
-  const dateLabel = formatThaiDateKey(dateKey);
+function buildScheduleMessage(target: ScheduleQueryTarget, records: Record<string, unknown>[]) {
+  const dateLabel = formatScheduleLabel(target);
 
   if (!records.length) {
     return `${dateLabel} ยังไม่มีนัดที่บันทึกไว้ครับ ผอ.`;
@@ -47,8 +47,50 @@ function buildScheduleMessage(dateKey: string, records: Record<string, unknown>[
   return [`${dateLabel} มีนัด ${records.length} รายการครับ ผอ.`, ...lines].join("\n");
 }
 
-export function resolveScheduleQueryDate(input: { intent: AssistantIntent; sourceText: string; now?: Date }) {
-  return input.intent.entities.eventDate || resolveThaiDateFromText(input.sourceText, input.now)?.dateKey || getBangkokDateKey(input.now);
+type ScheduleQueryTarget = {
+  dateKey: string;
+  source: string;
+  monthKey?: string;
+  startDateKey?: string;
+  endDateKey?: string;
+};
+
+function formatThaiMonthKey(monthKey: string) {
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) return monthKey;
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+function formatThaiWeekLabel(startDateKey: string, endDateKey: string) {
+  const startLabel = formatThaiDateKey(startDateKey);
+  const endLabel = formatThaiDateKey(endDateKey);
+  return `สัปดาห์ระหว่าง ${startLabel} ถึง ${endLabel}`;
+}
+
+function formatScheduleLabel(target: ScheduleQueryTarget) {
+  if (target.startDateKey && target.endDateKey && target.monthKey) {
+    return formatThaiMonthKey(target.monthKey);
+  }
+  if (target.startDateKey && target.endDateKey && target.weekKey) {
+    return formatThaiWeekLabel(target.startDateKey, target.endDateKey);
+  }
+  return formatThaiDateKey(target.dateKey);
+}
+
+function resolveScheduleQueryTarget(input: { intent: AssistantIntent; sourceText: string; now?: Date }): ScheduleQueryTarget {
+  const resolution = input.intent.entities.eventDate
+    ? { dateKey: input.intent.entities.eventDate, source: "explicit-date" }
+    : resolveThaiDateFromText(input.sourceText, input.now);
+
+  if (resolution) {
+    return resolution;
+  }
+
+  return { dateKey: getBangkokDateKey(input.now), source: "today" };
 }
 
 export async function querySchedule(input: {
@@ -57,14 +99,17 @@ export async function querySchedule(input: {
   sourceText: string;
   now?: Date;
 }): Promise<ScheduleQueryResult> {
-  const dateKey = resolveScheduleQueryDate(input);
-  const snapshot = await getAdminDb()
+  const target = resolveScheduleQueryTarget(input);
+  const collection = getAdminDb()
     .collection("users")
     .doc(input.requestContext.user.id)
-    .collection("events")
-    .where("eventDate", "==", dateKey)
-    .limit(50)
-    .get();
+    .collection("events");
+
+  const query = target.startDateKey && target.endDateKey
+    ? collection.where("eventDate", ">=", target.startDateKey).where("eventDate", "<=", target.endDateKey).limit(50)
+    : collection.where("eventDate", "==", target.dateKey).limit(50);
+
+  const snapshot = await query.get();
 
   const records: Record<string, unknown>[] = snapshot.docs
     .map((doc) => ({ id: doc.id, ...serializeFirestoreData(doc.data()) }) as Record<string, unknown>)
@@ -74,9 +119,9 @@ export async function querySchedule(input: {
     success: true,
     operation: "query_schedule",
     entityType: "event",
-    date: dateKey,
+    date: target.dateKey,
     count: records.length,
     records,
-    safeMessage: buildScheduleMessage(dateKey, records),
+    safeMessage: buildScheduleMessage(target, records),
   };
 }
