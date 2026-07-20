@@ -44,7 +44,6 @@ function requiredFields(intent: AssistantIntent) {
     const missing = [];
     if (!entities.title) missing.push("title");
     if (!entities.eventDate) missing.push("eventDate");
-    if (!entities.startTime) missing.push("startTime");
     return missing;
   }
 

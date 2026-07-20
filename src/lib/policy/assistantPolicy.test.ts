@@ -61,7 +61,7 @@ describe("assistant policy", () => {
     expect(decision.status).toBe("allow");
   });
 
-  it("requires clarification when required event time is missing", () => {
+  it("allows create_event without a start time", () => {
     const decision = evaluateAssistantPolicy({
       intent: intent({
         entities: {
@@ -73,8 +73,7 @@ describe("assistant policy", () => {
       sourceText: "พรุ่งนี้มีประชุมครู",
     });
 
-    expect(decision.status).toBe("clarify");
-    expect(decision.reasonCode).toBe("MISSING_REQUIRED_FIELDS");
+    expect(decision.status).toBe("allow");
   });
 
   it("blocks hypothetical statements even if Claude extracts a save intent", () => {
