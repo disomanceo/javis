@@ -410,8 +410,10 @@ export function JarvisApp() {
         <div className="knowledge-list">
           {knowledge.slice(0, 7).map((item) => (
             <article key={item.id}>
-              <strong>{item.title}</strong>
-              <p>{item.sentence || item.content}</p>
+              <strong>{item.sentence || item.title}</strong>
+              {item.sentence && item.content && item.sentence !== item.content ? (
+                <p>{item.content}</p>
+              ) : null}
             </article>
           ))}
         </div>

@@ -502,14 +502,16 @@ export async function POST(request: Request) {
 
     const context = await searchKnowledge(lastUserMessage.content);
     const contextText = context.length
-      ? context.map((item, index) => `ข้อมูล ${index + 1}: ${item.title}\n${item.content}`).join("\n\n")
+      ? context
+          .map((item, index) => `ข้อมูล ${index + 1}: ${item.title}\n${item.sentence || item.content}`)
+          .join("\n\n")
       : "ยังไม่พบข้อมูลที่เกี่ยวข้องใน Firebase";
 
     const response = await getClaude().messages.create({
       model: claudeModel(),
       max_tokens: 900,
       system:
-        "You are Jarvis, a Thai-speaking personal assistant. Use the Firebase knowledge context when relevant. If the context does not contain the answer, say so briefly and answer from general knowledge. Keep replies conversational and concise.",
+        "You are Jarvis, a Thai-speaking personal assistant. Use the Firebase knowledge context only when it is directly relevant to the user's question. If the context does not contain the answer, answer briefly from general knowledge. Do not guess or invent details from unrelated context. Keep replies conversational and concise.",
       messages: [
         ...messages.slice(0, -1),
         {
