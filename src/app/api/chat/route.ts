@@ -313,12 +313,13 @@ export async function POST(request: Request) {
 
     const youtubeQuery = youtubeRequest(lastUserMessage.content);
     if (youtubeQuery) {
-      const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery)}`;
+      const youtubeUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeQuery)}&autoplay=1`;
       return NextResponse.json({
-        text: `เปิด YouTube เพลง "${youtubeQuery}" ให้ครับ ผอ.`,
+        text: `เปิดเพลง YouTube "${youtubeQuery}" ให้ครับ ผอ.`,
         contextCount: 0,
         usage: null,
         youtubeUrl,
+        youtubeQuery,
       });
     }
 

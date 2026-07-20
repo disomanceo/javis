@@ -211,6 +211,63 @@ select {
   min-height: 0;
 }
 
+.youtube-panel {
+  min-height: 280px;
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(11, 23, 19, 0.92);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.youtube-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.youtube-header strong {
+  display: block;
+  color: var(--accent-2);
+}
+
+.youtube-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.youtube-header button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.youtube-frame {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #000;
+}
+
+.youtube-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 .tool-panel {
   padding: 18px 20px;
   display: grid;

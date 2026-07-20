@@ -93,6 +93,8 @@ export function JarvisApp() {
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
   const [saveRecords, setSaveRecords] = useState<SaveRecord[]>([]);
+  const [youtubeUrl, setYoutubeUrl] = useState<string | null>(null);
+  const [youtubeQuery, setYoutubeQuery] = useState<string | null>(null);
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
   const [mobileMenuSection, setMobileMenuSection] = useState<"voice" | "memory">("voice");
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -367,6 +369,27 @@ export function JarvisApp() {
   function renderMemoryPanel() {
     return (
       <section className="tool-panel memory-panel">
+        {youtubeUrl ? (
+          <section className="youtube-panel">
+            <div className="youtube-header">
+              <div>
+                <strong>กำลังเล่นบน YouTube</strong>
+                <p>{youtubeQuery}</p>
+              </div>
+              <button type="button" onClick={() => setYoutubeUrl(null)}>
+                ปิด
+              </button>
+            </div>
+            <div className="youtube-frame">
+              <iframe
+                title="YouTube Player"
+                src={youtubeUrl}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </section>
+        ) : null}
         <h2>
           <BookOpen size={18} />
           ฐานข้อมูลความรู้
@@ -450,7 +473,8 @@ export function JarvisApp() {
       if (!response.ok) throw new Error(data.message || "Jarvis ตอบไม่ได้");
 
       if (data.youtubeUrl) {
-        window.open(data.youtubeUrl, "_blank");
+        setYoutubeUrl(data.youtubeUrl);
+        setYoutubeQuery(data.youtubeQuery || null);
       }
 
       const answer = data.text || "ผมไม่ได้รับคำตอบกลับมาครับ";
