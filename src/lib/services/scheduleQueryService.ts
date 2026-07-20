@@ -51,6 +51,7 @@ type ScheduleQueryTarget = {
   dateKey: string;
   source: string;
   monthKey?: string;
+  weekKey?: string;
   startDateKey?: string;
   endDateKey?: string;
 };
