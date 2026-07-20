@@ -112,7 +112,8 @@ export function evaluateAssistantPolicy(input: {
     };
   }
 
-  const missing = [...requiredFields(intent), ...intent.missingFields];
+  const required = requiredFields(intent);
+  const missing = [...required, ...intent.missingFields.filter((field) => required.includes(field))];
   if (missing.length) {
     return {
       status: "clarify",
