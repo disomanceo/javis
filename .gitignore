@@ -15,4 +15,5 @@ __pycache__
 *.log
 firebase-service-account*.json
 *firebase-adminsdk*.json
+tsconfig.tsbuildinfo
 VERCEL_ENV_VALUES_LOCAL_ONLY.txt

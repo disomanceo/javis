@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { BookOpen, Eraser, Mic2, Send, Square, Volume2 } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Eraser, Mic2, Send, Square, Volume2 } from "lucide-react";
 import { JarvisHologram, type HologramMode } from "@/components/JarvisHologram";
 import "./jarvis-app.css";
 
@@ -92,6 +92,8 @@ export function JarvisApp() {
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [knowledgeForm, setKnowledgeForm] = useState({ title: "", content: "", tags: "" });
   const [saveRecords, setSaveRecords] = useState<SaveRecord[]>([]);
+  const [showFloatingMenu, setShowFloatingMenu] = useState(false);
+  const [mobileMenuSection, setMobileMenuSection] = useState<"voice" | "memory">("voice");
   const messagesRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -262,6 +264,160 @@ export function JarvisApp() {
     );
   }
 
+  function toggleMobileMenu(section: "voice" | "memory") {
+    if (mobileMenuSection === section && showFloatingMenu) {
+      setShowFloatingMenu(false);
+      return;
+    }
+
+    setMobileMenuSection(section);
+    setShowFloatingMenu(true);
+  }
+
+  function renderVoiceControlsPanel() {
+    return (
+      <section className="tool-panel voice-controls-panel">
+        <h2>
+          <Volume2 size={18} />
+          เสียงตอบกลับ
+        </h2>
+        <label className="toggle-row">
+          <input checked={speechEnabled} onChange={(event) => setSpeechEnabled(event.target.checked)} type="checkbox" />
+          <span>เปิดเสียง</span>
+        </label>
+        <label>
+          โมเดลเสียง
+          <select value={ttsProvider} onChange={(event) => setTtsProvider(event.target.value as TtsProvider)}>
+            <option value="browser">Browser / Microsoft</option>
+            <option value="gemini">Gemini TTS</option>
+            <option value="thonburian">ThonburianTTS</option>
+            <option value="mms">MMS-TTS Thai</option>
+          </select>
+        </label>
+        <label>
+          เลือกเสียง
+          <select
+            value={
+              ttsProvider === "browser"
+                ? voiceIndex
+                : ttsProvider === "thonburian"
+                ? "ThonburianTTS"
+                : ttsProvider === "mms"
+                ? "MMS-TTS Thai"
+                : geminiVoice
+            }
+            onChange={(event) => {
+              if (ttsProvider === "browser") {
+                setVoiceIndex(event.target.value);
+              } else {
+                setGeminiVoice(event.target.value);
+              }
+            }}
+          >
+            {ttsProvider === "browser" ? (
+              voices.length ? (
+                voices.map((voice, index) => (
+                  <option key={`${voice.name}-${voice.lang}-${index}`} value={String(index)}>
+                    {voice.name} - {voice.lang}
+                  </option>
+                ))
+              ) : (
+                <option value="0">Browser default voice</option>
+              )
+            ) : ttsProvider === "thonburian" ? (
+              <option value="ThonburianTTS">ThonburianTTS - Thai</option>
+            ) : ttsProvider === "mms" ? (
+              <option value="MMS-TTS Thai">MMS-TTS Thai - facebook/mms-tts-tha</option>
+            ) : (
+              GEMINI_VOICES.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name} - {voice.style}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+        <div className="button-row">
+          <button
+            type="button"
+            onClick={() => {
+              window.speechSynthesis?.cancel();
+              audioRef.current?.pause();
+              stopAudioLevelMeter();
+              setHologramMode("idle");
+            }}
+          >
+            <Square size={16} />
+            หยุดเสียง
+          </button>
+          <button type="button" onClick={() => setMessages([])}>
+            <Eraser size={16} />
+            ล้างแชต
+          </button>
+          <button type="button" onClick={testSelectedVoice}>
+            <Volume2 size={16} />
+            ทดสอบเสียง
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  function renderMemoryPanel() {
+    return (
+      <section className="tool-panel memory-panel">
+        <h2>
+          <BookOpen size={18} />
+          ฐานข้อมูลความรู้
+        </h2>
+        <form className="knowledge-form" onSubmit={saveKnowledge}>
+          <input
+            value={knowledgeForm.title}
+            onChange={(event) => setKnowledgeForm((current) => ({ ...current, title: event.target.value }))}
+            placeholder="หัวข้อ เช่น ข้อมูลบริษัท"
+          />
+          <textarea
+            value={knowledgeForm.content}
+            onChange={(event) => setKnowledgeForm((current) => ({ ...current, content: event.target.value }))}
+            placeholder="เนื้อหาที่ Jarvis ใช้ค้นหาและตอบ"
+            rows={5}
+          />
+          <input
+            value={knowledgeForm.tags}
+            onChange={(event) => setKnowledgeForm((current) => ({ ...current, tags: event.target.value }))}
+            placeholder="แท็ก คั่นด้วย comma"
+          />
+          <button type="submit">
+            <Mic2 size={16} />
+            เพิ่มให้ Jarvis จำ
+          </button>
+        </form>
+        <div className="save-log" aria-live="polite">
+          <strong>บันทึกล่าสุด</strong>
+          {saveRecords.length ? (
+            saveRecords.map((record) => (
+              <article key={`${record.id}-${record.savedAt}`}>
+                <span>{record.savedAt}</span>
+                <p>{record.title}</p>
+                <small>{record.detail}</small>
+              </article>
+            ))
+          ) : (
+            <p className="empty-save-log">ยังไม่มีรายการบันทึกในรอบนี้</p>
+          )}
+        </div>
+        <div className="knowledge-list">
+          {knowledge.slice(0, 7).map((item) => (
+            <article key={item.id}>
+              <strong>{item.title}</strong>
+              <p>{item.content}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   async function loadKnowledge() {
     const response = await fetch("/api/knowledge");
     const data = await response.json();
@@ -375,7 +531,7 @@ export function JarvisApp() {
         <div ref={messagesRef} className="messages">
           {messages.map((message, index) => (
             <article key={`${message.role}-${index}`} className={`message ${message.role}`}>
-              <strong>{message.role === "user" ? "คุณ" : "Jarvis"}</strong>
+              <strong>{message.role === "user" ? "ผอ." : "จาวิส"}</strong>
               <p>{message.content}</p>
             </article>
           ))}
@@ -403,141 +559,39 @@ export function JarvisApp() {
       <aside className="side-panel" aria-label="Jarvis controls and knowledge">
         <JarvisHologram mode={hologramMode} audioLevel={audioLevel} />
 
-        <section className="tool-panel voice-controls-panel">
-          <h2>
-            <Volume2 size={18} />
-            เสียงตอบกลับ
-          </h2>
-          <label className="toggle-row">
-            <input checked={speechEnabled} onChange={(event) => setSpeechEnabled(event.target.checked)} type="checkbox" />
-            <span>เปิดเสียง</span>
-          </label>
-          <label>
-            โมเดลเสียง
-            <select value={ttsProvider} onChange={(event) => setTtsProvider(event.target.value as TtsProvider)}>
-              <option value="browser">Browser / Microsoft</option>
-              <option value="gemini">Gemini TTS</option>
-              <option value="thonburian">ThonburianTTS</option>
-              <option value="mms">MMS-TTS Thai</option>
-            </select>
-          </label>
-          <label>
-            เลือกเสียง
-            <select
-              value={
-                ttsProvider === "browser"
-                  ? voiceIndex
-                  : ttsProvider === "thonburian"
-                    ? "ThonburianTTS"
-                    : ttsProvider === "mms"
-                      ? "MMS-TTS Thai"
-                      : geminiVoice
-              }
-              onChange={(event) => {
-                if (ttsProvider === "browser") {
-                  setVoiceIndex(event.target.value);
-                } else {
-                  setGeminiVoice(event.target.value);
-                }
-              }}
-            >
-              {ttsProvider === "browser" ? (
-                voices.length ? (
-                  voices.map((voice, index) => (
-                    <option key={`${voice.name}-${voice.lang}-${index}`} value={String(index)}>
-                      {voice.name} - {voice.lang}
-                    </option>
-                  ))
-                ) : (
-                  <option value="0">Browser default voice</option>
-                )
-              ) : ttsProvider === "thonburian" ? (
-                <option value="ThonburianTTS">ThonburianTTS - Thai</option>
-              ) : ttsProvider === "mms" ? (
-                <option value="MMS-TTS Thai">MMS-TTS Thai - facebook/mms-tts-tha</option>
-              ) : (
-                GEMINI_VOICES.map((voice) => (
-                  <option key={voice.name} value={voice.name}>
-                    {voice.name} - {voice.style}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          <div className="button-row">
+        <div className="desktop-panels">
+          {renderVoiceControlsPanel()}
+          {renderMemoryPanel()}
+        </div>
+
+        <button
+          type="button"
+          className="mobile-sheet-handle"
+          onClick={() => setShowFloatingMenu((current) => !current)}
+          aria-label={showFloatingMenu ? "ปิดเมนู" : "เปิดเมนู"}
+        >
+          <span className="sheet-handle-bar" />
+        </button>
+
+        <div className={`mobile-floating-menu ${showFloatingMenu ? "visible" : "hidden"}`}>
+          <div className="mobile-toolbar">
             <button
               type="button"
-              onClick={() => {
-                window.speechSynthesis?.cancel();
-                audioRef.current?.pause();
-                stopAudioLevelMeter();
-                setHologramMode("idle");
-              }}
+              className={mobileMenuSection === "voice" ? "active" : ""}
+              onClick={() => toggleMobileMenu("voice")}
             >
-              <Square size={16} />
-              หยุดเสียง
+              เสียง
             </button>
-            <button type="button" onClick={() => setMessages([])}>
-              <Eraser size={16} />
-              ล้างแชต
-            </button>
-            <button type="button" onClick={testSelectedVoice}>
-              <Volume2 size={16} />
-              ทดสอบเสียง
+            <button
+              type="button"
+              className={mobileMenuSection === "memory" ? "active" : ""}
+              onClick={() => toggleMobileMenu("memory")}
+            >
+              ความจำ
             </button>
           </div>
-        </section>
-
-        <section className="tool-panel memory-panel">
-          <h2>
-            <BookOpen size={18} />
-            ฐานข้อมูลความรู้
-          </h2>
-          <form className="knowledge-form" onSubmit={saveKnowledge}>
-            <input
-              value={knowledgeForm.title}
-              onChange={(event) => setKnowledgeForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="หัวข้อ เช่น ข้อมูลบริษัท"
-            />
-            <textarea
-              value={knowledgeForm.content}
-              onChange={(event) => setKnowledgeForm((current) => ({ ...current, content: event.target.value }))}
-              placeholder="เนื้อหาที่ Jarvis ใช้ค้นหาและตอบ"
-              rows={5}
-            />
-            <input
-              value={knowledgeForm.tags}
-              onChange={(event) => setKnowledgeForm((current) => ({ ...current, tags: event.target.value }))}
-              placeholder="แท็ก คั่นด้วย comma"
-            />
-            <button type="submit">
-              <Mic2 size={16} />
-              เพิ่มให้ Jarvis จำ
-            </button>
-          </form>
-          <div className="save-log" aria-live="polite">
-            <strong>บันทึกล่าสุด</strong>
-            {saveRecords.length ? (
-              saveRecords.map((record) => (
-                <article key={`${record.id}-${record.savedAt}`}>
-                  <span>{record.savedAt}</span>
-                  <p>{record.title}</p>
-                  <small>{record.detail}</small>
-                </article>
-              ))
-            ) : (
-              <p className="empty-save-log">ยังไม่มีรายการบันทึกในรอบนี้</p>
-            )}
-          </div>
-          <div className="knowledge-list">
-            {knowledge.slice(0, 7).map((item) => (
-              <article key={item.id}>
-                <strong>{item.title}</strong>
-                <p>{item.content}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+          {mobileMenuSection === "voice" ? renderVoiceControlsPanel() : renderMemoryPanel()}
+        </div>
       </aside>
     </main>
   );
