@@ -249,6 +249,36 @@ export function JarvisApp() {
     void speak(`ทดสอบเสียง ${selected} ครับ ผอ.`, { force: true });
   }
 
+  function formatSavedRecordDetail(record: Record<string, unknown>, entityType: string) {
+    const title = String(record.title || record.subject || record.fact || "").trim();
+    const eventDate = typeof record.eventDate === "string" ? record.eventDate : "";
+    const startTime = typeof record.startTime === "string" ? record.startTime : "";
+    const endTime = typeof record.endTime === "string" ? record.endTime : "";
+    const dueDate = typeof record.dueDate === "string" ? record.dueDate : "";
+    const dueTime = typeof record.dueTime === "string" ? record.dueTime : "";
+    const notifyAtThai = typeof record.notifyAtThai === "string" ? record.notifyAtThai : "";
+    const location = typeof record.location === "string" ? record.location : "";
+    const description = typeof record.description === "string" ? record.description : "";
+
+    if (entityType === "event") {
+      const timeLabel = startTime ? `${startTime}${endTime ? `-${endTime}` : ""} น.` : "";
+      return ["บันทึกเหตุการณ์", eventDate, timeLabel, location ? `ที่ ${location}` : "", description]
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    if (entityType === "task") {
+      const timeLabel = dueTime ? `${dueTime} น.` : "";
+      return ["บันทึกงาน", dueDate, timeLabel, description].filter(Boolean).join(" ");
+    }
+
+    if (entityType === "reminder") {
+      return ["ตั้งเตือน", notifyAtThai || description].filter(Boolean).join(" ");
+    }
+
+    return record.detail ? String(record.detail) : `บันทึกเป็น ${entityType}`;
+  }
+
   function rememberSavedRecord(input: { title?: string | null; detail?: string | null; id?: string | null }) {
     const savedAt = new Intl.DateTimeFormat("th-TH", {
       timeZone: "Asia/Bangkok",
@@ -527,7 +557,9 @@ export function JarvisApp() {
         rememberSavedRecord({
           id: data.operationResult.recordId,
           title: data.operationResult.record?.title || data.operationResult.operation,
-          detail: `บันทึกเป็น ${data.operationResult.entityType}`,
+          detail: data.operationResult.record && data.operationResult.entityType
+            ? formatSavedRecordDetail(data.operationResult.record, data.operationResult.entityType)
+            : `บันทึกเป็น ${data.operationResult.entityType}`,
         });
       }
       if (!speechEnabled) setHologramMode(data.operationResult?.success || data.savedKnowledge ? "alert" : "idle");
