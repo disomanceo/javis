@@ -553,7 +553,9 @@ export function JarvisApp() {
           detail: "บันทึกเข้าฐานข้อมูลความจำ",
         });
       }
-      if (data.operationResult?.success) {
+
+      const mutationOperations = new Set(["create_event", "create_task", "create_reminder", "save_memory"]);
+      if (data.operationResult?.success && mutationOperations.has(data.operationResult.operation)) {
         rememberSavedRecord({
           id: data.operationResult.recordId,
           title: data.operationResult.record?.title || data.operationResult.operation,
