@@ -449,6 +449,10 @@ export function JarvisApp() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Jarvis ตอบไม่ได้");
 
+      if (data.youtubeUrl) {
+        window.open(data.youtubeUrl, "_blank");
+      }
+
       const answer = data.text || "ผมไม่ได้รับคำตอบกลับมาครับ";
       setMessages((current) => [...current, { role: "assistant", content: answer }]);
       if (data.savedKnowledge) {

@@ -89,6 +89,22 @@ function memoryRequest(content: string) {
   return null;
 }
 
+function youtubeRequest(content: string) {
+  const trimmed = content.trim();
+  const patterns = [
+    /^(?:เปิด|เล่น)\s*(?:เพลง\s*)?(?:youtube|ยูทูบ)?\s*[:\-–—]?\s*(.+)$/i,
+    /^(?:เปิด|เล่น)\s*(.+?)\s*(?:ใน\s*)?(?:youtube|ยูทูบ)$/i,
+    /^(?:ค้นหา|search)\s*(?:เพลง\s*)?(.+)\s*(?:ใน\s*)?(?:youtube|ยูทูบ)?$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  return null;
+}
+
 const THAI_MONTHS: Record<string, number> = {
   "ม.ค.": 1,
   "มกราคม": 1,
@@ -293,6 +309,17 @@ export async function POST(request: Request) {
 
     if (!lastUserMessage) {
       return NextResponse.json({ message: "Missing user message." }, { status: 400 });
+    }
+
+    const youtubeQuery = youtubeRequest(lastUserMessage.content);
+    if (youtubeQuery) {
+      const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery)}`;
+      return NextResponse.json({
+        text: `เปิด YouTube เพลง "${youtubeQuery}" ให้ครับ ผอ.`,
+        contextCount: 0,
+        usage: null,
+        youtubeUrl,
+      });
     }
 
     if (shouldUseDirectorGreeting(lastUserMessage.content)) {
